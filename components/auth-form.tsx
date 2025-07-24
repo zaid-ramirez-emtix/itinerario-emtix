@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { Form, Input, Button } from "@heroui/react";
+import Image from "next/image";
+import LogoSVG from "@/assets/logo_golden.svg";
+import React, { useState } from 'react'
+import { Form, Input, Button, Checkbox, Link } from "@heroui/react";
+import { Icon } from "@iconify/react";
 import { createClient } from "@/utils/supabase/client"
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 type AuthMode = 'login' | 'signup'
 
@@ -12,11 +14,25 @@ interface AuthFormProps {
   mode?: AuthMode;
 }
 
+// Componente del logo usando el SVG importado
+const AcmeIcon = ({ size = 60 }: { size?: number }) => (
+  <Image 
+    src={LogoSVG}
+    alt="Logo"
+    width={size} 
+    height={size}
+    className="object-contain"
+  />
+)
+
 export function AuthForm({ mode = 'login' }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
   const router = useRouter();
+
+  const toggleVisibility = () => setIsVisible(!isVisible);
 
   const handleSubmit = async (formData: FormData) => {
     setLoading(true);
@@ -37,7 +53,6 @@ export function AuthForm({ mode = 'login' }: AuthFormProps) {
           password,
           options: {
             emailRedirectTo: `${baseUrl}/auth/confirm`,
-            // Estos datos son necesarios debido a que agregamos la autenticación con GitHub y estos metadatos GitHub ya nos los da.
             data: {
               name: email.split('@')[0],
               user_name: email.split('@')[0],
@@ -74,68 +89,84 @@ export function AuthForm({ mode = 'login' }: AuthFormProps) {
   };
 
   return (
-    <div className="w-full max-w-md flex flex-col items-center">
-      <Form className="w-full max-w-xs mb-4 mt-4" action={handleSubmit}>
-        <Input
-          isRequired
-          errorMessage="Por favor, ingresa un email válido"
-          label="Email"
-          labelPlacement="outside"
-          name="email"
-          placeholder="Ingresa tu email"
-          type="email"
-          isDisabled={loading}
-        />
-        <Input 
-          isRequired
-          label="Password"
-          labelPlacement='outside'
-          name='password'
-          placeholder='Ingresa tu password'
-          type='password'
-          isDisabled={loading}
-          minLength={6}
-        />
-        
-        {error && (
-          <div className="text-small text-danger bg-danger-50 p-2 rounded mb-4">
-            {error}
-          </div>
-        )}
-        
-        {success && (
-          <div className="text-small text-success bg-success-50 p-2 rounded mb-4">
-            {success}
-          </div>
-        )}
-
-        <Button 
-          type="submit" 
-          color="primary"
-          isLoading={loading}
-          isDisabled={loading}
-          className="w-full"
-        >
-          {loading ? 'Procesando...' : (mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión')}
-        </Button>
-      </Form>
-
-      <div className="text-center mt-4">
-        {mode === 'login' ? (
-          <p className="text-sm text-gray-600">
-            ¿No tienes una cuenta?{' '}
-            <Link href="/signup" className="text-blue-600 hover:text-blue-800 font-medium">
-              Regístrate aquí
-            </Link>
+    <div className="flex h-full w-full items-center justify-center">
+      <div className="flex w-full max-w-sm flex-col gap-4 rounded-large">
+        <div className="flex flex-col items-center pb-6">
+          <AcmeIcon size={60} />
+          <p className="text-xl font-medium">
+            {mode === 'signup' ? 'Crear Cuenta' : 'Bienvenido de Vuelta'}
           </p>
-        ) : (
-          <p className="text-sm text-gray-600">
-            ¿Ya tienes una cuenta?{' '}
-            <Link href="/login" className="text-blue-600 hover:text-blue-800 font-medium">
-              Inicia sesión aquí
-            </Link>
+          <p className="text-small text-default-500">
+            {mode === 'signup' 
+              ? 'Crea tu cuenta para comenzar' 
+              : 'Inicia sesión en tu cuenta para continuar'
+            }
           </p>
-        )}
+        </div>
+
+        <Form className="flex flex-col gap-3" validationBehavior="native" action={handleSubmit}>
+          <Input
+            isRequired
+            label="Email"
+            name="email"
+            placeholder="Ingresa tu email"
+            type="email"
+            variant="bordered"
+            isDisabled={loading}
+            errorMessage="Por favor, ingresa un email válido"
+          />
+          <Input
+            isRequired
+            endContent={
+              <button type="button" onClick={toggleVisibility}>
+                {isVisible ? (
+                  <Icon
+                    className="pointer-events-none text-2xl text-default-400"
+                    icon="solar:eye-closed-linear"
+                  />
+                ) : (
+                  <Icon
+                    className="pointer-events-none text-2xl text-default-400"
+                    icon="solar:eye-bold"
+                  />
+                )}
+              </button>
+            }
+            label="Password"
+            name="password"
+            placeholder="Ingresa tu password"
+            type={isVisible ? "text" : "password"}
+            variant="bordered"
+            isDisabled={loading}
+            minLength={6}
+          />
+
+         
+
+          {error && (
+            <div className="text-small text-danger bg-danger-50 p-2 rounded mb-2">
+              {error}
+            </div>
+          )}
+          
+          {success && (
+            <div className="text-small text-success bg-success-50 p-2 rounded mb-2">
+              {success}
+            </div>
+          )}
+
+          <Button 
+            className="w-full" 
+            color="primary" 
+            type="submit"
+            isLoading={loading}
+            isDisabled={loading}
+          >
+            {loading ? 'Procesando...' : (mode === 'signup' ? 'Crear cuenta' : 'Iniciar sesión')}
+          </Button>
+        </Form>
+
+      
       </div>
     </div>
   );

@@ -74,9 +74,7 @@ export const Navbar = () => {
             </NavbarItem>
             <NavbarItem className="hidden md:flex">
               <NextLink href="/signup">
-                <Button color="primary">
-                  Registrarse
-                </Button>
+                
               </NextLink>
             </NavbarItem>
           </>

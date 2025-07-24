@@ -30,6 +30,8 @@ export function ComposePostClient({ userAvatarUrl, onSubmit }: ComposePostClient
         >
         </textarea>
         <ComposePostButton />
+
+        
       </div>
     </form>
   )
