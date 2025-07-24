@@ -1,6 +1,5 @@
 import "@/styles/globals.css";
 import { Metadata, Viewport } from "next";
-import { Link } from "@heroui/link";
 import clsx from "clsx";
 
 import { Providers } from "./providers";
@@ -8,7 +7,6 @@ import { AuthProvider } from "@/hooks/useAuth";
 import SidebarLayout from "@/components/SidebarLayout";
 import { siteConfig } from "@/config/site";
 import { fontSans } from "@/config/fonts";
-
 
 export const metadata: Metadata = {
   title: {
@@ -51,16 +49,10 @@ export default function RootLayout({
 
                 {children}
               </main>
-              <footer className="w-full flex items-center justify-center py-3">
-                <Link
-                  isExternal
-                  className="flex items-center gap-1 text-current"
-                  href="https://github.com/JesDev12U"
-                  title="heroui.com homepage"
-                >
-               
-                </Link>
-              </footer>
+              
+              <main className="container mx-auto max-w-7xl pt-16 px-6 flex-grow">
+                {children}
+              </main>
             </div>
           </AuthProvider>
         </Providers>
