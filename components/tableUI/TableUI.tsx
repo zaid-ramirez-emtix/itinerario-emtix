@@ -1,7 +1,6 @@
 'use client';
 
 import type { Selection, SortDescriptor } from '@heroui/react';
-import type { ColumnsKey, StatusOptions, Users } from './data';
 import type { Key } from '@react-types/shared';
 
 import {
@@ -20,10 +19,10 @@ import {
   RadioGroup,
   Radio,
   Chip,
-  User,
   Pagination,
   Tooltip,
   useButton,
+  User,
   Popover,
   PopoverTrigger,
   PopoverContent,
@@ -32,11 +31,10 @@ import { SearchIcon } from '@heroui/shared-icons';
 import React, { useMemo, useRef, useCallback, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { cn } from '@heroui/react';
+import { Status } from './Status';
+import { StatusOptions } from './mockData';
 
 import { useMemoizedCallback } from './use-memoized-callback';
-
-import { columns, INITIAL_VISIBLE_COLUMNS, users } from './data';
-import { Status } from './Status';
 
 import { CopyText } from './copy-text';
 import { EyeFilledIcon } from './eye';
@@ -45,10 +43,12 @@ import { DeleteFilledIcon } from './delete';
 import { ArrowDownIcon } from './arrow-down';
 import { ArrowUpIcon } from './arrow-up';
 
-export default function TableUI() {
+import { Column } from './tableInterfaces';
+
+export default function TableUI({ columns, data, title, buttonsAdd }: { columns: Column[]; data: any[]; title: string; buttonsAdd: string[] }) {
   const [filterValue, setFilterValue] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
-  const [visibleColumns, setVisibleColumns] = useState<Selection>(new Set(INITIAL_VISIBLE_COLUMNS));
+  const [visibleColumns, setVisibleColumns] = useState<Selection>(new Set(columns.map((col) => col.uid)));
   const [rowsPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
@@ -57,8 +57,14 @@ export default function TableUI() {
   });
 
   const [workerTypeFilter, setWorkerTypeFilter] = React.useState('all');
-  const [statusFilter, setStatusFilter] = React.useState('all');
   const [startDateFilter, setStartDateFilter] = React.useState('all');
+
+  const filterColumns = columns.filter((col) => col.filterSearch);
+  if (filterColumns.length > 1) {
+    console.warn('Más de una columna tiene filterSearch: true. Se usará solo la primera:', filterColumns[0].uid);
+  }
+
+  const filterColumn = filterColumns[0]?.uid;
 
   const headerColumns = useMemo(() => {
     if (visibleColumns === 'all') return columns;
@@ -78,26 +84,28 @@ export default function TableUI() {
   }, [visibleColumns, sortDescriptor]);
 
   const itemFilter = useCallback(
-    (col: Users) => {
+    (col: any) => {
       let allWorkerType = workerTypeFilter === 'all';
-      let allStatus = statusFilter === 'all';
       let allStartDate = startDateFilter === 'all';
 
       return (
-        (allWorkerType || workerTypeFilter === col.workerType.toLowerCase()) &&
-        (allStatus || statusFilter === col.status.toLowerCase()) &&
+        (allWorkerType || workerTypeFilter === col.representative.toLowerCase()) &&
         (allStartDate ||
           new Date(new Date().getTime() - +(startDateFilter.match(/(\d+)(?=Days)/)?.[0] ?? 0) * 24 * 60 * 60 * 1000) <= new Date(col.startDate))
       );
     },
-    [startDateFilter, statusFilter, workerTypeFilter]
+    [startDateFilter, workerTypeFilter]
   );
 
   const filteredItems = useMemo(() => {
-    let filteredUsers = [...users];
+    let filteredUsers = [...data];
 
-    if (filterValue) {
-      filteredUsers = filteredUsers.filter((user) => user.memberInfo.name.toLowerCase().includes(filterValue.toLowerCase()));
+    if (filterValue && filterColumn) {
+      filteredUsers = filteredUsers.filter((row) =>
+        String(row[filterColumn as keyof typeof row])
+          .toLowerCase()
+          .includes(filterValue.toLowerCase())
+      );
     }
 
     filteredUsers = filteredUsers.filter(itemFilter);
@@ -115,19 +123,11 @@ export default function TableUI() {
   }, [page, filteredItems, rowsPerPage]);
 
   const sortedItems = useMemo(() => {
-    return [...items].sort((a: Users, b: Users) => {
-      const col = sortDescriptor.column as keyof Users;
+    return [...items].sort((a: any, b: any) => {
+      const col = sortDescriptor.column;
 
       let first = a[col];
       let second = b[col];
-
-      if (col === 'memberInfo') {
-        first = a[col].name;
-        second = b[col].name;
-      } else if (sortDescriptor.column === 'externalWorkerID') {
-        first = +a.externalWorkerID.split('EXT-')[1];
-        second = +b.externalWorkerID.split('EXT-')[1];
-      }
 
       const cmp = first < second ? -1 : first > second ? 1 : 0;
 
@@ -164,16 +164,16 @@ export default function TableUI() {
     onClick: handleMemberClick,
   }));
 
-  const renderCell = useMemoizedCallback((user: Users, columnKey: React.Key) => {
-    const userKey = columnKey as ColumnsKey;
+  const renderCell = useMemoizedCallback((user: any, columnKey: React.Key) => {
+    const userKey = columnKey as string;
+    const cellValue = user[userKey as any] as string;
+    const column = columns.find((col) => col.uid === userKey);
+    const type = column?.columnType ?? 'default';
 
-    const cellValue = user[userKey as unknown as keyof Users] as string;
-
-    switch (userKey) {
-      case 'workerID':
-      case 'externalWorkerID':
+    switch (type) {
+      case 'copy':
         return <CopyText>{cellValue}</CopyText>;
-      case 'memberInfo':
+      case 'user':
         return (
           <User
             avatarProps={{ radius: 'lg', src: user[userKey].avatar }}
@@ -187,12 +187,12 @@ export default function TableUI() {
             {user[userKey].email}
           </User>
         );
-      case 'startDate':
+      case 'date':
         return (
           <div className="flex items-center gap-1">
             <Icon className="h-[16px] w-[16px] text-default-300" icon="solar:calendar-minimalistic-linear" />
-            <p className="text-nowrap text-small capitalize text-default-foreground">
-              {new Intl.DateTimeFormat('en-US', {
+            <p className="text-nowrap text-small text-default-foreground">
+              {new Intl.DateTimeFormat('es-MX', {
                 month: 'long',
                 day: 'numeric',
                 year: 'numeric',
@@ -200,10 +200,10 @@ export default function TableUI() {
             </p>
           </div>
         );
-      case 'teams':
+      case 'chips':
         return (
           <div className="float-start flex gap-1">
-            {user[userKey].map((team, index) => {
+            {user[userKey].map((team: any, index: any) => {
               if (index < 3) {
                 return (
                   <Chip key={team} className="rounded-xl bg-default-100 px-[6px] capitalize text-default-800" size="sm" variant="flat">
@@ -225,8 +225,6 @@ export default function TableUI() {
         );
       case 'role':
         return <div className="text-nowrap text-small capitalize text-default-foreground">{cellValue}</div>;
-      case 'workerType':
-        return <div className="text-default-foreground">{cellValue}</div>;
       case 'status':
         return <Status status={cellValue as StatusOptions} />;
       case 'actions':
@@ -300,7 +298,7 @@ export default function TableUI() {
             <Input
               className="min-w-[200px]"
               endContent={<SearchIcon className="text-default-400" width={16} />}
-              placeholder="Buscar"
+              placeholder={`Filtrar por ${filterColumns[0]?.name.toLowerCase()}`}
               size="sm"
               value={filterValue}
               onValueChange={onSearchChange}
@@ -402,11 +400,9 @@ export default function TableUI() {
     filterSelectedKeys,
     headerColumns,
     sortDescriptor,
-    statusFilter,
     workerTypeFilter,
     startDateFilter,
     setWorkerTypeFilter,
-    setStatusFilter,
     setStartDateFilter,
     onSearchChange,
     setVisibleColumns,
@@ -416,18 +412,17 @@ export default function TableUI() {
     return (
       <div className="mb-[18px] flex items-center justify-between">
         <div className="flex w-[226px] items-center gap-2">
-          <h1 className="text-2xl font-[700] leading-[32px]">Cotizaciones</h1>
+          <h1 className="text-2xl font-[700] leading-[32px]">{title}</h1>
           <Chip className="hidden items-center text-default-500 sm:flex" size="sm" variant="flat">
-            {users.length}
+            {data.length}
           </Chip>
         </div>
         <div className="flex gap-3">
-          <Button color="primary" endContent={<Icon icon="solar:add-circle-bold" width={20} />}>
-            Nueva cotización de vuelo
-          </Button>
-          <Button color="success" endContent={<Icon icon="solar:add-circle-bold" width={20} />}>
-            Nueva cotización de hospedaje
-          </Button>
+          {buttonsAdd.map((label, index) => (
+            <Button key={index} color="primary" endContent={<Icon icon="solar:add-circle-bold" width={20} />}>
+              {label}
+            </Button>
+          ))}
         </div>
       </div>
     );
@@ -513,7 +508,7 @@ export default function TableUI() {
             </TableColumn>
           )}
         </TableHeader>
-        <TableBody emptyContent={'No users found'} items={sortedItems}>
+        <TableBody emptyContent={'Sin información disponible'} items={sortedItems}>
           {(item) => <TableRow key={item.id}>{(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}</TableRow>}
         </TableBody>
       </Table>
