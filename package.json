@@ -23,6 +23,7 @@
     "@heroui/switch": "2.2.21",
     "@heroui/system": "2.4.19",
     "@heroui/theme": "2.4.18",
+    "@iconify/react": "^6.0.0",
     "@internationalized/date": "^3.8.2",
     "@react-aria/i18n": "^3.12.11",
     "@react-aria/ssr": "3.9.9",
