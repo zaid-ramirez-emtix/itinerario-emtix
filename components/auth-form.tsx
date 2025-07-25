@@ -1,5 +1,6 @@
+//components\auth-form.tsx
 'use client'
-
+import Dashboard from '@/components/tableUI/Dashboard';
 import Image from "next/image";
 import LogoSVG from "@/assets/logo_golden.svg";
 import React, { useState } from 'react'
@@ -76,7 +77,8 @@ export function AuthForm({ mode = 'login' }: AuthFormProps) {
           setError(error.message);
         } else {
           setSuccess('¡Inicio de sesión exitoso!');
-          router.push('/');
+          // Redirigir al dashboard después del login exitoso
+        router.push('/');
           router.refresh();
         }
       }
@@ -141,14 +143,7 @@ export function AuthForm({ mode = 'login' }: AuthFormProps) {
             minLength={6}
           />
 
-          {mode === 'login' && (
-            <div className="flex w-full items-center justify-between px-1 py-2">
-              <Checkbox name="remember" size="sm">
-                Recordarme
-              </Checkbox>
-              
-            </div>
-          )}
+          
 
           {error && (
             <div className="text-small text-danger bg-danger-50 p-2 rounded mb-2">
