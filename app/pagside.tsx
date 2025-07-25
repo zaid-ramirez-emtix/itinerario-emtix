@@ -1,7 +1,6 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from "next/navigation";
-import { PostsListData } from '@/types/posts';
 
 import SidebarLayout from "@/components/SidebarLayout";
 
@@ -13,10 +12,11 @@ export default async function App() {
     redirect('/login');
   }
 
-  const { data: posts }: { data: PostsListData } = await supabase
-    .from('posts')
-    .select('*, users(*)')
-    .order('created_at', { ascending: false });
+  // Comentado: tabla 'posts' no existe en este proyecto
+  // const { data: posts }: { data: PostsListData } = await supabase
+  //   .from('posts')
+  //   .select('*, users(*)')
+  //   .order('created_at', { ascending: false });
 
   return (
     <div className="flex min-h-screen">

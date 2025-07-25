@@ -28,11 +28,16 @@ import {
   PopoverContent,
 } from '@heroui/react';
 import { SearchIcon } from '@heroui/shared-icons';
-import React, { useMemo, useRef, useCallback, useState } from 'react';
+import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { cn } from '@heroui/react';
+import Link from 'next/link';
 import { Status } from './Status';
 import { StatusOptions } from './mockData';
+import { Modal, useModal } from '@/components/ui/modal';
+import { AddItineraryModal } from '@/components/itinerary/add-itinerary-modal';
+import { createClient } from '@/utils/supabase/client';
+import { toast } from 'sonner';
 
 import { useMemoizedCallback } from './use-memoized-callback';
 
@@ -45,7 +50,19 @@ import { ArrowUpIcon } from './arrow-up';
 
 import { Column } from './tableInterfaces';
 
-export default function TableUI({ columns, data, title, buttonsAdd }: { columns: Column[]; data: any[]; title: string; buttonsAdd: string[] }) {
+export default function TableUI({ 
+  columns, 
+  data, 
+  title, 
+  buttonsAdd, 
+  onDataChange 
+}: { 
+  columns: Column[]
+  data: any[]
+  title: string
+  buttonsAdd: string[]
+  onDataChange?: (newData: any[]) => void
+}) {
   const [filterValue, setFilterValue] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
   const [visibleColumns, setVisibleColumns] = useState<Selection>(new Set(columns.map((col) => col.uid)));
@@ -58,6 +75,14 @@ export default function TableUI({ columns, data, title, buttonsAdd }: { columns:
 
   const [workerTypeFilter, setWorkerTypeFilter] = React.useState('all');
   const [startDateFilter, setStartDateFilter] = React.useState('all');
+
+  // Modal state para agregar itinerario
+  const { isOpen: isAddModalOpen, openModal: openAddModal, closeModal: closeAddModal } = useModal();
+
+  // Effect para detectar cambios en data prop
+  useEffect(() => {
+    // Log removido para limpiar código
+  }, [data]);
 
   const filterColumns = columns.filter((col) => col.filterSearch);
   if (filterColumns.length > 1) {
@@ -233,6 +258,34 @@ export default function TableUI({ columns, data, title, buttonsAdd }: { columns:
             <EyeFilledIcon {...getEyesProps()} className="cursor-pointer text-default-400" height={18} width={18} />
             <EditLinearIcon {...getEditProps()} className="cursor-pointer text-default-400" height={18} width={18} />
             <DeleteFilledIcon {...getDeleteProps()} className="cursor-pointer text-default-400" height={18} width={18} />
+          </div>
+        );
+      case 'itinerary-actions':
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              size="sm"
+              color={user.status === 'Activo' ? 'danger' : 'success'}
+              variant="flat"
+              onPress={() => handleToggleStatus(user.id, user.status === 'Activo')}
+              startContent={
+                user.status === 'Activo' ? 
+                  <Icon icon="solar:eye-closed-linear" width={16} height={16} /> : 
+                  <Icon icon="solar:eye-linear" width={16} height={16} />
+              }
+            >
+              {user.status === 'Activo' ? 'Desactivar' : 'Activar'}
+            </Button>
+            <Button
+              as={Link}
+              href={`/itinerary/${user.id}`}
+              size="sm"
+              color="primary"
+              variant="flat"
+              startContent={<EyeFilledIcon height={16} width={16} />}
+            >
+              Ver detalles
+            </Button>
           </div>
         );
       default:
@@ -419,7 +472,16 @@ export default function TableUI({ columns, data, title, buttonsAdd }: { columns:
         </div>
         <div className="flex gap-3">
           {buttonsAdd.map((label, index) => (
-            <Button key={index} color="primary" endContent={<Icon icon="solar:add-circle-bold" width={20} />}>
+            <Button 
+              key={index} 
+              color="primary" 
+              endContent={<Icon icon="solar:add-circle-bold" width={20} />}
+              onPress={() => {
+                if (label === 'Nuevo itinerario') {
+                  openAddModal()
+                }
+              }}
+            >
               {label}
             </Button>
           ))}
@@ -460,58 +522,137 @@ export default function TableUI({ columns, data, title, buttonsAdd }: { columns:
     });
   });
 
+  // Función para manejar cuando se agrega un nuevo itinerario
+  const handleItineraryAdded = useCallback((newItinerary: any) => {
+    if (onDataChange) {
+      // Crear el objeto normalizado como se hace en la página principal
+      const createLocalDate = (dateString: string) => {
+        const dateParts = dateString.split('T')[0].split('-');
+        return new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+      };
+
+      const normalizedItinerary = {
+        id: newItinerary.id_itinerary,
+        title: newItinerary.title,
+        destination: newItinerary.destination,
+        language: `${newItinerary.language}`.toUpperCase(),
+        start_date: createLocalDate(newItinerary.start_date),
+        end_date: createLocalDate(newItinerary.end_date),
+        status: newItinerary.active ? 'Activo' : 'Inactivo',
+      };
+
+      // Agregar el nuevo itinerario y ordenar por fecha de inicio (más recientes primero)
+      const updatedData = [normalizedItinerary, ...data].sort((a, b) => {
+        return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
+      });
+      
+      onDataChange(updatedData);
+    }
+  }, [data, onDataChange]);
+
+  // Función para manejar el cambio de estado (activar/desactivar)
+  const handleToggleStatus = useCallback(async (itineraryId: string, isCurrentlyActive: boolean) => {
+    try {
+      const supabase = createClient();
+      const newActiveStatus = !isCurrentlyActive;
+      
+      // Actualizar en Supabase
+      const { error } = await supabase
+        .from('itinerary')
+        .update({ active: newActiveStatus })
+        .eq('id_itinerary', itineraryId);
+
+      if (error) {
+        console.error('Error al actualizar estado:', error);
+        toast.error('Error al actualizar el estado del itinerario');
+        return;
+      }
+
+      // Actualizar datos localmente
+      const updatedData = data.map(item => 
+        item.id === itineraryId 
+          ? { ...item, status: newActiveStatus ? 'Activo' : 'Inactivo' }
+          : item
+      );
+
+      if (onDataChange) {
+        onDataChange(updatedData);
+      }
+
+      toast.success(`Itinerario ${newActiveStatus ? 'activado' : 'desactivado'} correctamente`);
+    } catch (error) {
+      console.error('Error al cambiar estado:', error);
+      toast.error('Error al actualizar el estado del itinerario');
+    }
+  }, [data, onDataChange]);
+
   return (
-    <div className="h-full w-full p-6">
-      {topBar}
-      <Table
-        isHeaderSticky
-        aria-label="Example table with custom cells, pagination and sorting"
-        bottomContent={bottomContent}
-        bottomContentPlacement="outside"
-        classNames={{
-          td: 'before:bg-transparent',
-        }}
-        selectedKeys={filterSelectedKeys}
-        selectionMode="multiple"
-        sortDescriptor={sortDescriptor}
-        topContent={topContent}
-        topContentPlacement="outside"
-        onSelectionChange={onSelectionChange}
-        onSortChange={setSortDescriptor}
+    <>
+      <div className="h-full w-full p-6">
+        {topBar}
+        <Table
+          isHeaderSticky
+          aria-label="Example table with custom cells, pagination and sorting"
+          bottomContent={bottomContent}
+          bottomContentPlacement="outside"
+          classNames={{
+            td: 'before:bg-transparent',
+          }}
+          selectedKeys={filterSelectedKeys}
+          selectionMode="multiple"
+          sortDescriptor={sortDescriptor}
+          topContent={topContent}
+          topContentPlacement="outside"
+          onSelectionChange={onSelectionChange}
+          onSortChange={setSortDescriptor}
+        >
+          <TableHeader columns={headerColumns}>
+            {(column) => (
+              <TableColumn
+                key={column.uid}
+                align={column.uid === 'actions' ? 'end' : 'start'}
+                className={cn([column.uid === 'actions' ? 'flex items-center justify-end px-[20px]' : ''])}
+              >
+                {column.uid === 'memberInfo' ? (
+                  <div {...getMemberInfoProps()} className="flex w-full cursor-pointer items-center justify-between">
+                    {column.name}
+                    {column.sortDirection === 'ascending' ? (
+                      <ArrowUpIcon className="text-default-400" />
+                    ) : (
+                      <ArrowDownIcon className="text-default-400" />
+                    )}
+                  </div>
+                ) : column.info ? (
+                  <div className="flex min-w-[108px] items-center justify-between">
+                    {column.name}
+                    <Tooltip content={column.info}>
+                      <Icon className="text-default-300" height={16} icon="solar:info-circle-linear" width={16} />
+                    </Tooltip>
+                  </div>
+                ) : (
+                  column.name
+                )}
+              </TableColumn>
+            )}
+          </TableHeader>
+          <TableBody emptyContent={'Sin información disponible'} items={sortedItems}>
+            {(item) => <TableRow key={item.id}>{(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}</TableRow>}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Modal para agregar itinerario */}
+      <Modal 
+        isOpen={isAddModalOpen} 
+        onClose={closeAddModal}
+        title="Crear Nuevo Itinerario"
+        size="lg"
       >
-        <TableHeader columns={headerColumns}>
-          {(column) => (
-            <TableColumn
-              key={column.uid}
-              align={column.uid === 'actions' ? 'end' : 'start'}
-              className={cn([column.uid === 'actions' ? 'flex items-center justify-end px-[20px]' : ''])}
-            >
-              {column.uid === 'memberInfo' ? (
-                <div {...getMemberInfoProps()} className="flex w-full cursor-pointer items-center justify-between">
-                  {column.name}
-                  {column.sortDirection === 'ascending' ? (
-                    <ArrowUpIcon className="text-default-400" />
-                  ) : (
-                    <ArrowDownIcon className="text-default-400" />
-                  )}
-                </div>
-              ) : column.info ? (
-                <div className="flex min-w-[108px] items-center justify-between">
-                  {column.name}
-                  <Tooltip content={column.info}>
-                    <Icon className="text-default-300" height={16} icon="solar:info-circle-linear" width={16} />
-                  </Tooltip>
-                </div>
-              ) : (
-                column.name
-              )}
-            </TableColumn>
-          )}
-        </TableHeader>
-        <TableBody emptyContent={'Sin información disponible'} items={sortedItems}>
-          {(item) => <TableRow key={item.id}>{(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}</TableRow>}
-        </TableBody>
-      </Table>
-    </div>
+        <AddItineraryModal 
+          onItineraryAdded={handleItineraryAdded}
+          onClose={closeAddModal}
+        />
+      </Modal>
+    </>
   );
 }

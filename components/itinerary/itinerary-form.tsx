@@ -2,13 +2,14 @@
 
 import { Form, Input, Button } from "@heroui/react";
 import { useState, useEffect } from 'react'
-import { Select, SelectItem } from "@heroui/select";
 import { DatePicker } from "@heroui/react";
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
-import { Itinerary, ItineraryFormProps } from '@/types/itinerary';
+import { ItineraryInsert, ItineraryFormProps } from '@/types/itinerary';
 import { CalendarDate, parseDate } from "@internationalized/date";
+import { LanguageSearchSelect } from '@/components/ui/language-search-select'
 import { I18nProvider } from "@react-aria/i18n";
+import { revalidateItinerary } from "./itinerary-server";
 
 export default function ItineraryForm({ 
   initialData, 
@@ -17,12 +18,13 @@ export default function ItineraryForm({
   onCancel 
 }: ItineraryFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<Partial<Itinerary>>({
+  const [formData, setFormData] = useState<ItineraryInsert>({
     title: '',
     destination: '',
     language: '',
     start_date: '',
     end_date: '',
+    id_theme: '' // Requerido según database.ts
   });
   
   // Estados separados para las fechas del DatePicker
@@ -45,6 +47,7 @@ export default function ItineraryForm({
         language: initialData.language || '',
         start_date: initialData.start_date || '',
         end_date: initialData.end_date || '',
+        id_theme: initialData.id_theme || '',
       });
 
       // Convertir fechas string a CalendarDate para los DatePickers
@@ -96,6 +99,7 @@ export default function ItineraryForm({
         if (error) throw error;
 
         toast.success('¡Itinerario creado exitosamente!');
+        revalidateItinerary('/itinerary')
         onSuccess?.(data);
       } else {
         // Actualizar itinerario existente
@@ -110,7 +114,7 @@ export default function ItineraryForm({
 
         if (error) throw error;
 
-        toast.success('¡Itinerario actualizado exitosamente!');
+        revalidateItinerary('/itinerary')
         onSuccess?.(data);
       }
     } catch (error: any) {
@@ -122,7 +126,7 @@ export default function ItineraryForm({
   };
 
   const handleInputChange = (name: string, value: string) => {
-    setFormData((prev: Partial<Itinerary>) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value
     }));
@@ -130,16 +134,13 @@ export default function ItineraryForm({
 
   return (
     <I18nProvider locale="es-ES">
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-blue-900 py-12 px-4 relative overflow-hidden">
-        {/* Elementos decorativos con blur */}
-        
-        <div className="max-w-4xl mx-auto relative z-10">
+      <div className="p-6">
         {/* Header Section */}
-        <div className="text-center mb-10">
-          <h1 className="text-5xl font-bold text-gray-800 dark:text-white mb-4">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
             {mode === 'create' ? 'Nuevo Itinerario' : 'Editar Itinerario'}
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-300">
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
             {mode === 'create' 
               ? 'Completa el siguiente formulario para registrar el itinerario' 
               : 'Modifica los detalles de tu itinerario'
@@ -149,10 +150,10 @@ export default function ItineraryForm({
 
         {/* Form Container */}
         <div>
-          <Form className="grid grid-cols-1 lg:grid-cols-2 gap-6" onSubmit={handleSubmit}>
+          <Form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleSubmit}>
             
             {/* Título del Itinerario */}
-            <div className="lg:col-span-2">
+            <div className="md:col-span-2">
               <Input
                 isRequired
                 isDisabled={isLoading}
@@ -163,7 +164,7 @@ export default function ItineraryForm({
                 placeholder="Ej: Aventura en Europa"
                 type="text"
                 variant="bordered"
-                size="lg"
+                size="md"
                 className="font-medium"
                 value={formData.title}
                 onChange={(e) => handleInputChange('title', e.target.value)}
@@ -181,42 +182,33 @@ export default function ItineraryForm({
               placeholder="Ej: París, Francia"
               type="text"
               variant="bordered"
-              size="lg"
+              size="md"
               startContent={<span className="text-gray-400 dark:text-gray-500">📍</span>}
               value={formData.destination}
               onChange={(e) => handleInputChange('destination', e.target.value)}
             />
 
             {/* Idioma */}
-            <Select 
+            <LanguageSearchSelect
+              options={languages}
+              value={formData.language}
+              onSelectionChange={(selectedKey) => handleInputChange('language', selectedKey)}
+              label="Idioma del Itinerario"
+              placeholder="Buscar idioma..."
               isRequired
               isDisabled={isLoading}
-              label="Idioma del Itinerario" 
-              placeholder="Selecciona el idioma"
-              variant="bordered"
-              size="lg"
-              startContent={<span className="text-gray-400 dark:text-gray-500">🌐</span>}
-              selectedKeys={formData.language ? [formData.language] : []}
-              onSelectionChange={(keys) => {
-                const selectedKey = Array.from(keys)[0] as string;
-                handleInputChange('language', selectedKey);
-              }}
-            >
-              {languages.map((language) => (
-                <SelectItem key={language.key}>{language.label}</SelectItem>
-              ))}
-            </Select>
+            />
 
             {/* Fechas */}
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 📅 Fechas del Viaje
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <DatePicker 
                   label="Fecha de Inicio" 
                   variant="bordered"
-                  size="lg"
+                  size="md"
                   isDisabled={isLoading}
                   value={startDate}
                   showMonthAndYearPickers
@@ -233,7 +225,7 @@ export default function ItineraryForm({
                 <DatePicker 
                   label="Fecha de Fin" 
                   variant="bordered"
-                  size="lg"
+                  size="md"
                   isDisabled={isLoading}
                   value={endDate}
                   showMonthAndYearPickers
@@ -251,13 +243,13 @@ export default function ItineraryForm({
             </div>
 
             {/* Botones */}
-            <div className="lg:col-span-2 flex justify-center gap-4 pt-6">
+            <div className="md:col-span-2 flex justify-end gap-3 pt-4">
               {onCancel && (
                 <Button 
                   type="button"
                   variant="bordered"
-                  size="lg"
-                  className="px-8 py-3 text-lg font-semibold"
+                  size="md"
+                  className="px-6"
                   isDisabled={isLoading}
                   onPress={onCancel}
                 >
@@ -267,8 +259,8 @@ export default function ItineraryForm({
               <Button 
                 type="submit" 
                 color="primary"
-                size="lg"
-                className="px-12 py-3 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 dark:from-blue-500 dark:to-indigo-500 dark:hover:from-blue-600 dark:hover:to-indigo-600 transform hover:scale-105 transition-all duration-200"
+                size="md"
+                className="px-8"
                 isLoading={isLoading}
                 disabled={isLoading}
               >
@@ -281,7 +273,6 @@ export default function ItineraryForm({
           </Form>
         </div>
       </div>
-    </div>
     </I18nProvider>
   );
 }

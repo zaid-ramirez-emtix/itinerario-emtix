@@ -1,14 +1,20 @@
 'use client'
 
-import ItineraryForm from '@/components/itinerary-form';
-import { useRouter, useParams } from 'next/navigation';
+import ItineraryForm from './itinerary-form';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
+import { Itinerary } from '@/types/itinerary';
 
-export default function EditItinerary() {
+interface ItineraryEditProps {
+  id: string;
+  onUpdate?: (updatedItinerary: Itinerary) => void;
+  onClose?: () => void;
+}
+
+export default function ItineraryEdit({ id, onUpdate, onClose }: ItineraryEditProps) {
   const router = useRouter();
-  const params = useParams();
   const [itinerary, setItinerary] = useState(null);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
@@ -27,7 +33,7 @@ export default function EditItinerary() {
         const { data, error } = await supabase
           .from('itinerary')
           .select('*')
-          .eq('id_itinerary', params.id)
+          .eq('id_itinerary', id)
           .single();
 
         if (error) {
@@ -49,21 +55,26 @@ export default function EditItinerary() {
       }
     };
 
-    if (params.id) {
+    if (id) {
       fetchItinerary();
     }
-  }, [params.id, router, supabase]);
+  }, [id, router, supabase]);
 
-  const handleSuccess = () => {
-    params.id 
-    ? router.push(`/itinerary/${params.id}`)
-    : router.push('/');
+  const handleSuccess = (data: Itinerary) => {
+    if (onUpdate) {
+      onUpdate(data);
+      onClose?.();
+    } else {
+      router.push(`/itinerary/${id}`);
+    }
   };
 
   const handleCancel = () => {
-    params.id 
-    ? router.push(`/itinerary/${params.id}`)
-    : router.push('/');
+    if (onClose) {
+      onClose();
+    } else {
+      router.push(`/itinerary/${id}`);
+    }
   };
 
   if (loading) {
