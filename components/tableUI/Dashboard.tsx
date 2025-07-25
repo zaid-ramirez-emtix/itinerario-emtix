@@ -3,7 +3,6 @@ import { createClient } from '@/utils/supabase/server';
 import TableUI from '@/components/tableUI/TableUI';
 import { Column } from '@/components/tableUI/tableInterfaces';
 import { StatusOptions } from '@/components/tableUI/mockData';
-import SidebarComponent from '@/components/SidebarLayout'; // Asumiendo que exportas tu sidebar component
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -39,23 +38,13 @@ export default async function Dashboard() {
   ];
 
   return (
-    <div className="flex h-screen w-full">
-      {/* Sidebar fijo */}
-      <div className="flex-shrink-0">
-        <SidebarComponent />
-      </div>
-      
-      {/* Contenido principal */}
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
-          <TableUI 
-            columns={columns} 
-            data={normalizedUsers ?? []} 
-            title="Itinerarios" 
-            buttonsAdd={["Nuevo itinerario"]} 
-          />
-        </div>
-      </main>
+    <div className="p-6">
+      <TableUI 
+        columns={columns} 
+        data={normalizedUsers ?? []} 
+        title="Itinerarios" 
+        buttonsAdd={["Nuevo itinerario"]} 
+      />
     </div>
   );
 }

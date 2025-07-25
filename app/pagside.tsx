@@ -2,8 +2,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from "next/navigation";
 
-import SidebarLayout from "@/components/SidebarLayout";
-
 export default async function App() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,17 +17,10 @@ export default async function App() {
   //   .order('created_at', { ascending: false });
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar fijo a la izquierda */}
-      <aside className="w-72 h-screen sticky top-0 flex-shrink-0 border-r border-default-200">
-       
-        <SidebarLayout />
-      </aside>
-
-      {/* Contenido principal a la derecha */}
-      <main className="flex-1 p-6 overflow-y-auto">
-        {/* Aquí puedes mostrar los posts o lo que necesites */}
-      </main>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+      {/* Aquí puedes mostrar los posts o lo que necesites */}
+      <p>Contenido principal de la aplicación.</p>
     </div>
   );
 }
