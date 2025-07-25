@@ -1,9 +1,18 @@
-export default async function App() {
+
+
+import { AuthForm } from '@/components/auth-form';
+import SidebarLayout from "@/components/SidebarLayout";
+export default async function Login() {
   return (
-    <main className='flex min-h-screen flex-col items-center justify-between'>
-      <section className='max-w-[800px] w-full mx-auto border-l border-r border-white/30 min-h-screen'>
-        <h1>Si</h1>
-      </section>
-    </main>
-  );
+    <div className="flex flex-col items-center">
+      <div className="w-full max-w-md flex flex-col items-center">
+        <h1 className="text-3xl font-bold text-center mb-6">Inicia sesión</h1>
+        <AuthForm mode="login" />
+            
+        <div className="mt-6">
+      
+        </div>
+      </div>
+    </div>
+  )
 }

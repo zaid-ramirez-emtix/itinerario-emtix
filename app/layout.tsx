@@ -4,7 +4,6 @@ import clsx from "clsx";
 
 import { Providers } from "./providers";
 import { AuthProvider } from "@/hooks/useAuth";
-import SidebarLayout from "@/components/SidebarLayout";
 import { siteConfig } from "@/config/site";
 import { fontSans } from "@/config/fonts";
 
@@ -43,14 +42,7 @@ export default function RootLayout({
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <AuthProvider>
             <div className="relative flex flex-col h-screen">
-            
               <main className="flex-grow pt-6">
-
-
-                {children}
-              </main>
-              
-              <main className="container mx-auto max-w-7xl pt-16 px-6 flex-grow">
                 {children}
               </main>
             </div>
