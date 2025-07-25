@@ -10,60 +10,226 @@ export type Database = {
   // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
+    PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
   public: {
     Tables: {
-      posts: {
+      activity: {
         Row: {
-          content: string
-          created_at: string
-          id: string
-          user_id: string
+          active: boolean
+          activity_description: string
+          activity_link: string | null
+          activity_type: string
+          id_activity: string
+          id_day: string
+          order: number
+          transfer_time: string | null
         }
         Insert: {
-          content: string
-          created_at?: string
-          id?: string
-          user_id: string
+          active?: boolean
+          activity_description: string
+          activity_link?: string | null
+          activity_type: string
+          id_activity?: string
+          id_day: string
+          order: number
+          transfer_time?: string | null
         }
         Update: {
-          content?: string
-          created_at?: string
-          id?: string
-          user_id?: string
+          active?: boolean
+          activity_description?: string
+          activity_link?: string | null
+          activity_type?: string
+          id_activity?: string
+          id_day?: string
+          order?: number
+          transfer_time?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "posts_user_id_fkey1"
-            columns: ["user_id"]
+            foreignKeyName: "activity_id_day_fkey"
+            columns: ["id_day"]
             isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
+            referencedRelation: "day"
+            referencedColumns: ["id_day"]
           },
         ]
       }
-      users: {
+      city: {
         Row: {
-          avatar_url: string
-          created_at: string
-          id: string
-          name: string
-          user_name: string
+          active: boolean
+          city_image_path: string | null
+          city_name: string
+          id_city: string
         }
         Insert: {
-          avatar_url: string
-          created_at?: string
-          id?: string
-          name: string
-          user_name: string
+          active?: boolean
+          city_image_path?: string | null
+          city_name: string
+          id_city?: string
         }
         Update: {
-          avatar_url?: string
+          active?: boolean
+          city_image_path?: string | null
+          city_name?: string
+          id_city?: string
+        }
+        Relationships: []
+      }
+      city_day: {
+        Row: {
+          id_city: string
+          id_day: string
+        }
+        Insert: {
+          id_city: string
+          id_day: string
+        }
+        Update: {
+          id_city?: string
+          id_day?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "city_day_id_city_fkey"
+            columns: ["id_city"]
+            isOneToOne: false
+            referencedRelation: "city"
+            referencedColumns: ["id_city"]
+          },
+          {
+            foreignKeyName: "city_day_id_day_fkey"
+            columns: ["id_day"]
+            isOneToOne: false
+            referencedRelation: "day"
+            referencedColumns: ["id_day"]
+          },
+        ]
+      }
+      day: {
+        Row: {
+          active: boolean
+          day_description: string
+          id_day: string
+          id_itinerary: string
+          image_path: string | null
+          lodging_place: string
+          order: number
+        }
+        Insert: {
+          active?: boolean
+          day_description: string
+          id_day?: string
+          id_itinerary: string
+          image_path?: string | null
+          lodging_place: string
+          order: number
+        }
+        Update: {
+          active?: boolean
+          day_description?: string
+          id_day?: string
+          id_itinerary?: string
+          image_path?: string | null
+          lodging_place?: string
+          order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_id_itinerary_fkey"
+            columns: ["id_itinerary"]
+            isOneToOne: false
+            referencedRelation: "itinerary"
+            referencedColumns: ["id_itinerary"]
+          },
+        ]
+      }
+      itinerary: {
+        Row: {
+          active: boolean
+          destination: string
+          end_date: string
+          id_itinerary: string
+          id_theme: string
+          language: string
+          start_date: string
+          title: string
+        }
+        Insert: {
+          active?: boolean
+          destination: string
+          end_date: string
+          id_itinerary?: string
+          id_theme: string
+          language: string
+          start_date: string
+          title: string
+        }
+        Update: {
+          active?: boolean
+          destination?: string
+          end_date?: string
+          id_itinerary?: string
+          id_theme?: string
+          language?: string
+          start_date?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itinerary_id_theme_fkey"
+            columns: ["id_theme"]
+            isOneToOne: false
+            referencedRelation: "theme"
+            referencedColumns: ["id_theme"]
+          },
+        ]
+      }
+      theme: {
+        Row: {
+          active: boolean
+          color_back: string
+          color_front: string
+          created_at: string
+          font: string
+          id_theme: string
+          name_theme: string
+          path_img_agency: string
+          path_img_back: string
+          path_img_client: string
+          path_img_fair: string
+          path_img_front: string
+          size_title: number
+        }
+        Insert: {
+          active?: boolean
+          color_back: string
+          color_front: string
           created_at?: string
-          id?: string
-          name?: string
-          user_name?: string
+          font: string
+          id_theme?: string
+          name_theme: string
+          path_img_agency: string
+          path_img_back: string
+          path_img_client: string
+          path_img_fair: string
+          path_img_front: string
+          size_title: number
+        }
+        Update: {
+          active?: boolean
+          color_back?: string
+          color_front?: string
+          created_at?: string
+          font?: string
+          id_theme?: string
+          name_theme?: string
+          path_img_agency?: string
+          path_img_back?: string
+          path_img_client?: string
+          path_img_fair?: string
+          path_img_front?: string
+          size_title?: number
         }
         Relationships: []
       }

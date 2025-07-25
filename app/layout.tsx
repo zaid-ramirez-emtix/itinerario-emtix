@@ -1,6 +1,7 @@
 import "@/styles/globals.css";
 import { Metadata, Viewport } from "next";
 import clsx from "clsx";
+import { Toaster } from "sonner";
 
 import { Providers } from "./providers";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -47,6 +48,7 @@ export default function RootLayout({
               </main>
             </div>
           </AuthProvider>
+          <Toaster position="top-right" />
         </Providers>
       </body>
     </html>
