@@ -1,9 +1,7 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-
 import { redirect } from 'next/navigation';
 import TableUI from '../components/tableUI/TableUI';
 

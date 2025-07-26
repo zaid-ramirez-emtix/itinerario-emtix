@@ -178,7 +178,11 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                       items={item.items}
                       variant="flat"
                     >
-                      {item.items.map(renderItem)}
+                      {item.items.map((subItem) => (
+                        <React.Fragment key={subItem.key}>
+                          {renderItem(subItem, false)}
+                        </React.Fragment>
+                      ))}
                     </Listbox>
                   ) : (
                     renderItem(item)
@@ -194,7 +198,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     );
 
     const renderItem = React.useCallback(
-      (item: SidebarItem) => {
+      (item: SidebarItem, withKey: boolean = true) => {
         const isNestType =
           item.items && item.items?.length > 0 && item?.type === SidebarItemType.Nest;
 
@@ -205,7 +209,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         return (
           <ListboxItem
             {...item}
-            key={item.key}
+            key={withKey ? item.key : undefined}
             endContent={isCompact || hideEndContent ? null : (item.endContent ?? null)}
             startContent={
               isCompact ? null : item.icon ? (
@@ -294,7 +298,11 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               showDivider={isCompact}
               title={item.title}
             >
-              {item.items.map(renderItem)}
+              {item.items.map((subItem) => (
+                <React.Fragment key={subItem.key}>
+                  {renderItem(subItem, false)}
+                </React.Fragment>
+              ))}
             </ListboxSection>
           ) : (
             renderItem(item)

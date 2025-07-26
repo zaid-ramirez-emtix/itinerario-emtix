@@ -1,7 +1,7 @@
 
 
 import { AuthForm } from '@/components/auth-form';
-import SidebarLayout from "@/components/SidebarLayout";
+
 export default async function Login() {
   return (
     <div className="flex flex-col items-center">
