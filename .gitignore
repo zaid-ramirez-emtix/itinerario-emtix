@@ -35,6 +35,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# uploads (keep directory but ignore uploaded files)
+/public/uploads/days/*
+!/public/uploads/days/.gitkeep
+!/public/uploads/.gitkeep
+
 pnpm-lock.yaml
 yarn.lock
 package-lock.json

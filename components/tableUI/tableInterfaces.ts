@@ -7,4 +7,4 @@ export interface Column {
   info?: string;
 }
 
-type ColumnType = 'default' | 'copy' | 'user' | 'date' | 'country' | 'chips' | 'role' | 'status' | 'actions';
+type ColumnType = 'default' | 'copy' | 'user' | 'date' | 'country' | 'chips' | 'role' | 'status' | 'actions' | 'itinerary-actions';
