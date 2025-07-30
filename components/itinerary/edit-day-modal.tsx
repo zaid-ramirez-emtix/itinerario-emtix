@@ -4,24 +4,28 @@ import { useState, useEffect } from 'react'
 import { Button, Input, Textarea } from '@heroui/react'
 import { IconDeviceFloppy, IconX, IconHome, IconUpload, IconPhoto } from '@tabler/icons-react'
 import { toast } from 'sonner'
-import { Day, DayInsert } from '@/types/itinerary'
-import { updateDay } from '@/services/itinerary'
+import { Day, DayInsert, City, DayWithActivities } from '@/types/itinerary'
+import { updateDay, getCities } from '@/services/itinerary'
 import { uploadImage, validateImageFile, resizeImageIfNeeded } from '@/services/images'
 import { deleteImageFile, isOurUploadedImage } from '@/services/file-cleanup-client'
+import { CitySearchSelect } from '../ui/city-search-select'
 
 interface EditDayModalProps {
   day: Day
-  onDayUpdated: (updatedDay: Day) => void
+  onDayUpdated: (updatedDay: DayWithActivities) => void
   onClose: () => void
 }
 
 export function EditDayModal({ day, onDayUpdated, onClose }: EditDayModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [cities, setCities] = useState<City[]>([])
+  const [isLoadingCities, setIsLoadingCities] = useState(true)
   const [formData, setFormData] = useState({
     description: '',
     lodging_place: '',
-    image_url: ''
+    image_url: '',
+    id_city: ''
   })
 
   // Inicializar el formulario con los datos del día
@@ -29,9 +33,28 @@ export function EditDayModal({ day, onDayUpdated, onClose }: EditDayModalProps) 
     setFormData({
       description: day.day_description || '',
       lodging_place: day.lodging_place || '',
-      image_url: day.image_path || ''
+      image_url: day.image_path || '',
+      id_city: day.id_city || ''
     })
   }, [day])
+
+  // Cargar ciudades al montar el componente
+  useEffect(() => {
+    const loadCities = async () => {
+      try {
+        setIsLoadingCities(true)
+        const citiesData = await getCities()
+        setCities(citiesData)
+      } catch(error) {
+        console.error('Error loading cities', error)
+        toast.error('Error al cargar las ciudades')
+      } finally {
+        setIsLoadingCities(false)
+      }
+    }
+
+    loadCities()
+  }, [])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -81,6 +104,11 @@ export function EditDayModal({ day, onDayUpdated, onClose }: EditDayModalProps) 
       return
     }
 
+    if (!formData.id_city) {
+      toast.error('La ciudad es obligatoria')
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -89,7 +117,8 @@ export function EditDayModal({ day, onDayUpdated, onClose }: EditDayModalProps) 
       const updateData: Partial<Omit<DayInsert, 'id_day' | 'created_at' | 'order'>> = {
         day_description: formData.description.trim(),
         lodging_place: formData.lodging_place.trim() || '',
-        image_path: formData.image_url || '/api/placeholder/400/200',
+        image_path: formData.image_url || null,
+        id_city: formData.id_city,
       }
 
       console.log('Day data to update:', updateData)
@@ -141,6 +170,27 @@ export function EditDayModal({ day, onDayUpdated, onClose }: EditDayModalProps) 
             onValueChange={(value) => handleInputChange('lodging_place', value)}
             startContent={<IconHome size={16} className="text-default-400" />}
           />
+        </div>
+
+        {/* Ciudad */}
+        <div>
+          <CitySearchSelect 
+            options={cities.map(city => ({
+              key: city.id_city?.toString(),
+              label: city.city_name
+            }))}
+            value={formData.id_city}
+            onSelectionChange={(value) => handleInputChange('id_city', value)}
+            label='Ciudad'
+            placeholder={isLoadingCities ? 'Cargando ciudades...' : 'Buscar ciudad...'}
+            isDisabled={isLoadingCities}
+          />
+          {isLoadingCities && (
+            <p className='text-xs text-default-500 mt-1'>Cargando ciudades...</p>
+          )}
+          {!isLoadingCities && cities.length === 0 && (
+            <p className='text-xs text-warning mt-1'>No hay ciudades disponibles</p>
+          )}
         </div>
 
         {/* Imagen del día */}

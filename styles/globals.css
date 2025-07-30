@@ -5,3 +5,21 @@
 button:hover {
   cursor: pointer;
 }
+
+/* Mejoras para drag and drop */
+.dnd-dragging {
+  cursor: grabbing !important;
+}
+
+.dnd-dragging * {
+  cursor: grabbing !important;
+}
+
+/* Cuando se está arrastrando un elemento, cambiar el cursor en todo el body */
+body.dnd-active {
+  cursor: grabbing !important;
+}
+
+body.dnd-active * {
+  cursor: grabbing !important;
+}

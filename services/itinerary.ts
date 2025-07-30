@@ -16,7 +16,14 @@ export async function getDaysWithActivities(itineraryId: string): Promise<DayWit
   try {
     const { data: days, error: daysError } = await supabase
       .from('day')
-      .select('*')
+      .select(`
+        *,
+        city:id_city (
+          id_city,
+          city_name,
+          city_image_path
+        )
+      `)
       .eq('id_itinerary', itineraryId)
       .order('order', { ascending: true })
 
@@ -58,7 +65,10 @@ export async function getDaysWithActivities(itineraryId: string): Promise<DayWit
 /**
  * Crea un nuevo día
  */
-export async function createDay(dayData: Omit<DayInsert, 'id_day' | 'created_at' | 'order'>): Promise<Day> {
+/**
+ * Crea un nuevo día y retorna los datos completos con información de la ciudad
+ */
+export async function createDay(dayData: Omit<DayInsert, 'id_day' | 'created_at' | 'order'>): Promise<DayWithActivities> {
   try {
     console.log('Creating day with data:', dayData)
 
@@ -96,11 +106,18 @@ export async function createDay(dayData: Omit<DayInsert, 'id_day' | 'created_at'
 
     console.log('Inserting day with data:', newDayData)
 
-    // Insertar el nuevo día
+    // Insertar el nuevo día y obtener la información completa con la ciudad
     const { data, error } = await supabase
       .from('day')
       .insert(newDayData)
-      .select()
+      .select(`
+        *,
+        city:id_city (
+          id_city,
+          city_name,
+          city_image_path
+        )
+      `)
       .single()
 
     if (error) {
@@ -113,8 +130,14 @@ export async function createDay(dayData: Omit<DayInsert, 'id_day' | 'created_at'
       throw new Error('No se pudo crear el día - sin datos devueltos')
     }
 
-    console.log('Day created successfully:', data)
-    return data
+    // Crear el objeto DayWithActivities con array vacío de actividades
+    const dayWithActivities: DayWithActivities = {
+      ...data,
+      activities: []
+    }
+
+    console.log('Day created successfully with complete data:', dayWithActivities)
+    return dayWithActivities
   } catch (error) {
     console.error('Error in createDay:', error)
     throw error
@@ -150,7 +173,10 @@ export async function updateDaysOrder(days: { id_day: string; order: number }[])
 /**
  * Actualiza un día existente
  */
-export async function updateDay(dayId: string, dayData: Partial<Omit<DayInsert, 'id_day' | 'created_at' | 'order'>>): Promise<Day> {
+/**
+ * Actualiza un día y retorna los datos completos con información de la ciudad
+ */
+export async function updateDay(dayId: string, dayData: Partial<Omit<DayInsert, 'id_day' | 'created_at' | 'order'>>): Promise<DayWithActivities> {
   try {
     console.log('Updating day with id:', dayId, 'data:', dayData)
 
@@ -158,7 +184,14 @@ export async function updateDay(dayId: string, dayData: Partial<Omit<DayInsert, 
       .from('day')
       .update(dayData)
       .eq('id_day', dayId)
-      .select()
+      .select(`
+        *,
+        city:id_city (
+          id_city,
+          city_name,
+          city_image_path
+        )
+      `)
       .single()
 
     if (error) {
@@ -171,8 +204,26 @@ export async function updateDay(dayId: string, dayData: Partial<Omit<DayInsert, 
       throw new Error('No se pudo actualizar el día - sin datos devueltos')
     }
 
-    console.log('Day updated successfully:', data)
-    return data
+    // Obtener las actividades del día
+    const { data: activities, error: activitiesError } = await supabase
+      .from('activity')
+      .select('*')
+      .eq('id_day', dayId)
+      .order('order', { ascending: true })
+
+    if (activitiesError) {
+      console.error('Error fetching activities for updated day:', activitiesError)
+      throw new Error('Error al cargar las actividades del día actualizado')
+    }
+
+    // Combinar el día con sus actividades
+    const dayWithActivities: DayWithActivities = {
+      ...data,
+      activities: activities || []
+    }
+
+    console.log('Day updated successfully with complete data:', dayWithActivities)
+    return dayWithActivities
   } catch (error) {
     console.error('Error in updateDay:', error)
     throw error
@@ -352,7 +403,7 @@ export async function getCities() {
     const { data: cities, error } = await supabase
       .from('city')
       .select('*')
-      .order('name_city', { ascending: true })
+      .order('city_name', { ascending: true })
 
     if (error) {
       console.error('Error fetching cities:', error)
