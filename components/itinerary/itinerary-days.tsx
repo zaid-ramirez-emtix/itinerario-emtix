@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardBody, CardHeader, Chip, Button, Image, Spinner } from '@heroui/react'
-import { IconGripVertical, IconClock, IconMapPin, IconExternalLink, IconPlus, IconEyeOff, IconEye, IconEdit } from '@tabler/icons-react'
+import { IconGripVertical, IconClock, IconMapPin, IconExternalLink, IconPlus, IconEyeOff, IconEye, IconEdit, IconPhoto } from '@tabler/icons-react'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
@@ -90,13 +90,15 @@ function SortableActivity({ activity, dayNumber, onEditActivity, onToggleActivit
       style={style}
       className={`bg-default-50 rounded-lg p-4 border border-default-200 hover:border-default-300 transition-colors ${
         !activity.active ? 'opacity-50' : ''
-      }`}
+      } ${isDragging ? 'cursor-grabbing' : ''}`}
     >
       <div className="flex items-start gap-3">
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-default-400 hover:text-default-600 transition-colors mt-1"
+          className={`text-default-400 hover:text-default-600 transition-colors mt-1 ${
+            isDragging ? 'cursor-grabbing' : 'cursor-grab active:cursor-grabbing'
+          }`}
         >
           <IconGripVertical size={16} />
         </div>
@@ -219,10 +221,15 @@ function SortableDay({ day, dayNumber, onUpdateActivities, onAddActivity, onEdit
 
   const handleActivityDragStart = (event: DragStartEvent) => {
     setActiveActivityId(event.active.id as string)
+    // Agregar clase al body para cambiar cursor globalmente
+    document.body.classList.add('dnd-active')
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
+
+    // Remover clase del body
+    document.body.classList.remove('dnd-active')
 
     if (active.id !== over?.id) {
       const oldIndex = activities.findIndex((activity) => activity.id_activity === active.id)
@@ -244,14 +251,16 @@ function SortableDay({ day, dayNumber, onUpdateActivities, onAddActivity, onEdit
     <Card
       ref={setNodeRef}
       style={style}
-      className={`w-full ${!day.active ? 'opacity-60' : ''}`}
+      className={`w-full ${!day.active ? 'opacity-60' : ''} ${isDragging ? 'cursor-grabbing' : ''}`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start gap-3 w-full">
           <div
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing text-default-400 hover:text-default-600 transition-colors mt-1"
+            className={`text-default-400 hover:text-default-600 transition-colors mt-1 ${
+              isDragging ? 'cursor-grabbing' : 'cursor-grab active:cursor-grabbing'
+            }`}
           >
             <IconGripVertical size={20} />
           </div>
@@ -267,6 +276,9 @@ function SortableDay({ day, dayNumber, onUpdateActivities, onAddActivity, onEdit
                     Inactivo
                   </Chip>
                 )}
+                <Chip color="primary" variant="solid" size="sm">
+                  📍 {day.city?.city_name || day.id_city}
+                </Chip>
                 {day.lodging_place && (
                   <div className="flex items-center gap-1 text-small text-default-500">
                     <IconMapPin size={14} />
@@ -308,12 +320,25 @@ function SortableDay({ day, dayNumber, onUpdateActivities, onAddActivity, onEdit
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
           <div className="lg:col-span-1">
             <div className="aspect-video rounded-lg overflow-hidden bg-default-200">
-              <Image
-                src={day.image_path || undefined}
-                alt={`Día ${dayNumber}`}
-                className="w-full h-full object-cover"
-                fallbackSrc="/api/placeholder/400/200"
-              />
+              {(day.image_path && !day.image_path.includes('/api/placeholder')) || day.city?.city_image_path ? (
+                <Image
+                  src={day.image_path && !day.image_path.includes('/api/placeholder') 
+                    ? day.image_path 
+                    : day.city?.city_image_path || ''}
+                  alt={day.image_path && !day.image_path.includes('/api/placeholder') 
+                    ? `Día ${dayNumber}` 
+                    : `Ciudad ${day.city?.city_name || day.id_city}`}
+                  className="w-full h-full object-cover"
+                  fallbackSrc="/api/placeholder/400/200"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-default-400">
+                  <div className="text-center">
+                    <IconPhoto size={32} className="mx-auto mb-2" />
+                    <p className="text-sm">Sin imagen</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           
@@ -432,10 +457,15 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)
+    // Agregar clase al body para cambiar cursor globalmente
+    document.body.classList.add('dnd-active')
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
+
+    // Remover clase del body
+    document.body.classList.remove('dnd-active')
 
     if (active.id !== over?.id) {
       const oldIndex = days.findIndex((day) => day.id_day === active.id)
@@ -514,18 +544,13 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
     closeAddActivity()
   }
 
-  const handleDayAdded = async (newDay: Day) => {
+  const handleDayAdded = async (newDay: DayWithActivities) => {
     try {
-      // Convertir Day a DayWithActivities agregando array vacío de actividades
-      const dayWithActivities: DayWithActivities = {
-        ...newDay,
-        activities: []
-      }
-      setDays(prevDays => [...prevDays, dayWithActivities])
+      // Ya tenemos el DayWithActivities completo con información de ciudad
+      setDays(prevDays => [...prevDays, newDay])
       closeAddDay()
       
-      // Opcional: recargar datos para asegurar sincronización
-      // await loadDays()
+      // Ya no necesitamos recargar datos porque tenemos la información completa
     } catch (error) {
       console.error('Error handling day added:', error)
       // En caso de error, recargar todos los datos
@@ -538,21 +563,20 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
     openEditDay()
   }
 
-  const handleDayUpdated = async (updatedDay: Day) => {
+  const handleDayUpdated = async (updatedDay: DayWithActivities) => {
     try {
-      // Actualizar el día en el estado local
+      // Actualizar solo el día específico en el estado local con los datos completos
       setDays(prevDays => 
         prevDays.map(day => 
           day.id_day === updatedDay.id_day 
-            ? { ...day, ...updatedDay }
+            ? updatedDay
             : day
         )
       )
       closeEditDay()
       setSelectedDayToEdit(null)
       
-      // Opcional: recargar datos para asegurar sincronización
-      // await loadDays()
+      // Ya no necesitamos recargar todos los datos porque tenemos la información completa
     } catch (error) {
       console.error('Error handling day updated:', error)
       // En caso de error, recargar todos los datos
