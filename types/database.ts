@@ -20,30 +20,36 @@ export type Database = {
           activity_description: string
           activity_link: string | null
           activity_type: string
+          created_at: string
           id_activity: string
           id_day: string
           order: number
-          transfer_time: string | null
+          transfer_time: string
+          updated_at: string
         }
         Insert: {
           active?: boolean
           activity_description: string
           activity_link?: string | null
           activity_type: string
+          created_at?: string
           id_activity?: string
           id_day: string
           order: number
-          transfer_time?: string | null
+          transfer_time: string
+          updated_at?: string
         }
         Update: {
           active?: boolean
           activity_description?: string
           activity_link?: string | null
           activity_type?: string
+          created_at?: string
           id_activity?: string
           id_day?: string
           order?: number
-          transfer_time?: string | null
+          transfer_time?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -57,84 +63,73 @@ export type Database = {
       }
       city: {
         Row: {
-          active: boolean
           city_image_path: string | null
           city_name: string
+          created_at: string
           id_city: string
+          updated_at: string
         }
         Insert: {
-          active?: boolean
           city_image_path?: string | null
           city_name: string
+          created_at?: string
           id_city?: string
+          updated_at?: string
         }
         Update: {
-          active?: boolean
           city_image_path?: string | null
           city_name?: string
+          created_at?: string
           id_city?: string
+          updated_at?: string
         }
         Relationships: []
       }
-      city_day: {
+      day: {
         Row: {
+          active: boolean
+          created_at: string
+          day_description: string
           id_city: string
           id_day: string
+          id_itinerary: string
+          image_path: string | null
+          lodging_place: string | null
+          order: number
+          updated_at: string
         }
         Insert: {
+          active?: boolean
+          created_at?: string
+          day_description: string
           id_city: string
-          id_day: string
+          id_day?: string
+          id_itinerary: string
+          image_path?: string | null
+          lodging_place?: string | null
+          order: number
+          updated_at?: string
         }
         Update: {
+          active?: boolean
+          created_at?: string
+          day_description?: string
           id_city?: string
           id_day?: string
+          id_itinerary?: string
+          image_path?: string | null
+          lodging_place?: string | null
+          order?: number
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "city_day_id_city_fkey"
+            foreignKeyName: "day_id_city_fkey"
             columns: ["id_city"]
             isOneToOne: false
             referencedRelation: "city"
             referencedColumns: ["id_city"]
           },
-          {
-            foreignKeyName: "city_day_id_day_fkey"
-            columns: ["id_day"]
-            isOneToOne: false
-            referencedRelation: "day"
-            referencedColumns: ["id_day"]
-          },
-        ]
-      }
-      day: {
-        Row: {
-          active: boolean
-          day_description: string
-          id_day: string
-          id_itinerary: string
-          image_path: string | null
-          lodging_place: string
-          order: number
-        }
-        Insert: {
-          active?: boolean
-          day_description: string
-          id_day?: string
-          id_itinerary: string
-          image_path?: string | null
-          lodging_place: string
-          order: number
-        }
-        Update: {
-          active?: boolean
-          day_description?: string
-          id_day?: string
-          id_itinerary?: string
-          image_path?: string | null
-          lodging_place?: string
-          order?: number
-        }
-        Relationships: [
           {
             foreignKeyName: "day_id_itinerary_fkey"
             columns: ["id_itinerary"]
@@ -147,33 +142,51 @@ export type Database = {
       itinerary: {
         Row: {
           active: boolean
+          created_at: string
           destination: string
           end_date: string
           id_itinerary: string
           id_theme: string
           language: string
+          path_img_back: string
+          path_img_client: string | null
+          path_img_fair: string | null
+          path_img_front: string
           start_date: string
           title: string
+          updated_at: string
         }
         Insert: {
           active?: boolean
+          created_at?: string
           destination: string
           end_date: string
           id_itinerary?: string
           id_theme: string
           language: string
+          path_img_back: string
+          path_img_client?: string | null
+          path_img_fair?: string | null
+          path_img_front: string
           start_date: string
           title: string
+          updated_at?: string
         }
         Update: {
           active?: boolean
+          created_at?: string
           destination?: string
           end_date?: string
           id_itinerary?: string
           id_theme?: string
           language?: string
+          path_img_back?: string
+          path_img_client?: string | null
+          path_img_fair?: string | null
+          path_img_front?: string
           start_date?: string
           title?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -188,48 +201,111 @@ export type Database = {
       theme: {
         Row: {
           active: boolean
-          color_back: string
-          color_front: string
+          city_img_size_px: number | null
+          color_back_cover: string | null
+          color_cover: string | null
+          color_headings: string | null
           created_at: string
-          font: string
+          day_layout: string | null
+          font_body: string | null
+          font_body_size: number | null
+          font_size_title: number | null
+          font_title: string
+          heading_font_size: number | null
+          heading_image_height: number | null
+          icon_size: number | null
+          icon_style: string | null
           id_theme: string
+          line_height: number | null
+          margin_title_top: number | null
           name_theme: string
+          page_background_color: string | null
+          page_height_px: number | null
+          page_padding_px: number | null
+          page_width_px: number | null
+          paragraph_spacing: number | null
           path_img_agency: string
-          path_img_back: string
-          path_img_client: string
-          path_img_fair: string
-          path_img_front: string
-          size_title: number
+          section_divider: string | null
+          section_spacing: number | null
+          summary_banner_background_color: string | null
+          summary_banner_border_color: string | null
+          summary_banner_text_color: string | null
+          timeline_color: string | null
+          title_alignment: string | null
+          title_case: string | null
+          updated_at: string
         }
         Insert: {
           active?: boolean
-          color_back: string
-          color_front: string
+          city_img_size_px?: number | null
+          color_back_cover?: string | null
+          color_cover?: string | null
+          color_headings?: string | null
           created_at?: string
-          font: string
+          day_layout?: string | null
+          font_body?: string | null
+          font_body_size?: number | null
+          font_size_title?: number | null
+          font_title: string
+          heading_font_size?: number | null
+          heading_image_height?: number | null
+          icon_size?: number | null
+          icon_style?: string | null
           id_theme?: string
+          line_height?: number | null
+          margin_title_top?: number | null
           name_theme: string
+          page_background_color?: string | null
+          page_height_px?: number | null
+          page_padding_px?: number | null
+          page_width_px?: number | null
+          paragraph_spacing?: number | null
           path_img_agency: string
-          path_img_back: string
-          path_img_client: string
-          path_img_fair: string
-          path_img_front: string
-          size_title: number
+          section_divider?: string | null
+          section_spacing?: number | null
+          summary_banner_background_color?: string | null
+          summary_banner_border_color?: string | null
+          summary_banner_text_color?: string | null
+          timeline_color?: string | null
+          title_alignment?: string | null
+          title_case?: string | null
+          updated_at?: string
         }
         Update: {
           active?: boolean
-          color_back?: string
-          color_front?: string
+          city_img_size_px?: number | null
+          color_back_cover?: string | null
+          color_cover?: string | null
+          color_headings?: string | null
           created_at?: string
-          font?: string
+          day_layout?: string | null
+          font_body?: string | null
+          font_body_size?: number | null
+          font_size_title?: number | null
+          font_title?: string
+          heading_font_size?: number | null
+          heading_image_height?: number | null
+          icon_size?: number | null
+          icon_style?: string | null
           id_theme?: string
+          line_height?: number | null
+          margin_title_top?: number | null
           name_theme?: string
+          page_background_color?: string | null
+          page_height_px?: number | null
+          page_padding_px?: number | null
+          page_width_px?: number | null
+          paragraph_spacing?: number | null
           path_img_agency?: string
-          path_img_back?: string
-          path_img_client?: string
-          path_img_fair?: string
-          path_img_front?: string
-          size_title?: number
+          section_divider?: string | null
+          section_spacing?: number | null
+          summary_banner_background_color?: string | null
+          summary_banner_border_color?: string | null
+          summary_banner_text_color?: string | null
+          timeline_color?: string | null
+          title_alignment?: string | null
+          title_case?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

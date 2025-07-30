@@ -18,6 +18,11 @@ export type CityUpdate = TablesUpdate<'city'>
 
 export interface DayWithActivities extends Day {
   activities: Activity[]
+  city?: {
+    id_city: string
+    city_name: string
+    city_image_path: string | null
+  }
 }
 
 export interface ItineraryFormProps {
