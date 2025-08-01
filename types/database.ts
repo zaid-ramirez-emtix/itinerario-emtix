@@ -152,6 +152,7 @@ export type Database = {
           path_img_client: string | null
           path_img_fair: string | null
           path_img_front: string
+          path_itinerary_image: string | null
           start_date: string
           title: string
           updated_at: string
@@ -168,6 +169,7 @@ export type Database = {
           path_img_client?: string | null
           path_img_fair?: string | null
           path_img_front: string
+          path_itinerary_image?: string | null
           start_date: string
           title: string
           updated_at?: string
@@ -184,6 +186,7 @@ export type Database = {
           path_img_client?: string | null
           path_img_fair?: string | null
           path_img_front?: string
+          path_itinerary_image?: string | null
           start_date?: string
           title?: string
           updated_at?: string
