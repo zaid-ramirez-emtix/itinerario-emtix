@@ -37,18 +37,18 @@ const handleImageUpload = async (
     toast.error(error.message || 'Error al cargar la imagen');
   } finally {
     stateUpdater(false);
-    // Limpiar el input para permitir subir la misma imagen de nuevo
-    event.target.value = '';
   }
 };
 
 export default function InputImage({
+  required,
   inputTitle,
   pathImg,
   keyObjectName,
   directory,
   changeHandler,
 }: {
+  required: boolean;
   inputTitle: string;
   pathImg: string;
   keyObjectName: string;
@@ -60,12 +60,12 @@ export default function InputImage({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-foreground mb-2">{inputTitle}</label>
+      <label className="block text-sm font-medium text-foreground mb-2">{inputTitle}{required ? <span className="text-red-700"> *</span> : ''}</label>
       <div className="space-y-3">
         {/* Zona de subida */}
         <div className="relative">
           <input
-            required
+            required={required}
             type="file"
             accept="image/*"
             onChange={(event) => handleImageUpload(event, setIsUploadingImage, changeHandler, directory, keyObjectName)}

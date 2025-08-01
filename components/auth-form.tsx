@@ -1,6 +1,5 @@
 //components\auth-form.tsx
 'use client'
-import Dashboard from '@/components/tableUI/Dashboard';
 import Image from "next/image";
 import LogoSVG from "@/assets/logo_golden.svg";
 import React, { useState } from 'react'

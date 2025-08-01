@@ -176,7 +176,8 @@ export function AddItineraryModal({ onItineraryAdded, onClose }: AddItineraryMod
           </div>
 
           <InputImage
-            inputTitle="Imagen portada *"
+            required={true}
+            inputTitle="Imagen portada"
             pathImg={formData.path_img_front || ''}
             keyObjectName="path_img_front"
             directory="itinerary/front"
@@ -184,7 +185,8 @@ export function AddItineraryModal({ onItineraryAdded, onClose }: AddItineraryMod
           />
 
           <InputImage
-            inputTitle="Imagen contraportada *"
+            required={true}
+            inputTitle="Imagen contraportada"
             pathImg={formData.path_img_back || ''}
             keyObjectName="path_img_back"
             directory="itinerary/back"
@@ -192,13 +194,16 @@ export function AddItineraryModal({ onItineraryAdded, onClose }: AddItineraryMod
           />
 
           <InputImage
+            required={false}
             inputTitle="Imagen del cliente"
             pathImg={formData.path_img_client || ''}
             keyObjectName="path_img_client"
             directory="itinerary/client"
             changeHandler={handleInputChange}
           />
+
           <InputImage
+            required={false}
             inputTitle="Imagen feria"
             pathImg={formData.path_img_fair || ''}
             keyObjectName="path_img_fair"
