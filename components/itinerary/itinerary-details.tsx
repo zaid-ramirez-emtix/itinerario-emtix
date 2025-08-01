@@ -10,10 +10,12 @@ import { toast } from 'sonner'
 import { Modal, useModal } from "@/components/ui/modal";
 import ItineraryEdit from "../itinerary/itinerary-edit";
 import { ItineraryDays } from "./itinerary-days";
+import { generateItineraryPDF } from '@/services/pdf-generator';
 
 export function ItineraryDetails({id}: {id: string}) {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const { isOpen, openModal, closeModal } = useModal();
   const [error, setError] = useState<string | null>(null)
 
@@ -81,6 +83,24 @@ export function ItineraryDetails({id}: {id: string}) {
   const handleItineraryUpdate = (updatedItinerary: Itinerary) => {
     setItinerary(updatedItinerary)
     toast.success('Itinerario actualizado correctamente')
+  }
+
+  const handleGeneratePDF = async () => {
+    if (!id) {
+      toast.error('ID del itinerario no válido')
+      return
+    }
+
+    setIsGeneratingPDF(true)
+    try {
+      await generateItineraryPDF(id)
+      toast.success('PDF generado y descargado correctamente')
+    } catch (error) {
+      console.error('Error generando PDF:', error)
+      toast.error('Error al generar el PDF. Por favor, intenta de nuevo.')
+    } finally {
+      setIsGeneratingPDF(false)
+    }
   }
 
   if (isLoading) {
@@ -168,9 +188,11 @@ export function ItineraryDetails({id}: {id: string}) {
           variant="bordered"
           startContent={<IconFileTypePdf size={16} />}
           className="flex-1 sm:flex-none"
-          onPress={() => toast.info('Funcionalidad de PDF próximamente')}
+          onPress={handleGeneratePDF}
+          isLoading={isGeneratingPDF}
+          isDisabled={isGeneratingPDF}
         >
-          Ver PDF
+          {isGeneratingPDF ? 'Generando PDF...' : 'Ver PDF'}
         </Button>
       </div>
 
