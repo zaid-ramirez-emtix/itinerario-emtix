@@ -1,6 +1,6 @@
 export type SiteConfig = typeof siteConfig;
 
 export const siteConfig = {
-  name: "Twitter",
-  description: "Una página web que simula los posts de Twitter",
+  name: "Golden Maya",
+  description: "A DMC (Destination Management Company) and Tour Operator",
 };

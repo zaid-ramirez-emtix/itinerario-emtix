@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardBody, CardHeader, Chip, Button, Image, Spinner } from '@heroui/react'
-import { IconGripVertical, IconClock, IconMapPin, IconExternalLink, IconPlus, IconEyeOff, IconEye, IconEdit, IconPhoto } from '@tabler/icons-react'
+import { IconGripVertical, IconClock, IconMapPin, IconExternalLink, IconPlus, IconEyeOff, IconEye, IconEdit, IconPhoto, IconTrash } from '@tabler/icons-react'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
@@ -14,13 +14,16 @@ import { EditDayModal } from './edit-day-modal'
 import { AddActivityModal } from './add-activity-modal'
 import { EditActivityModal } from './edit-activity-modal'
 import { Modal, useModal } from "@/components/ui/modal"
+import { useConfirmModal } from "@/components/ui/confirm-modal"
 import { toast } from 'sonner'
 import {
   getDaysWithActivities,
   updateDaysOrder,
   updateActivitiesOrder,
   toggleDayActive,
-  toggleActivityActive
+  toggleActivityActive,
+  deleteDay,
+  deleteActivity
 } from '@/services/itinerary'
 
 interface SortableActivityProps {
@@ -28,9 +31,10 @@ interface SortableActivityProps {
   dayNumber: number
   onEditActivity: (activity: Activity) => void
   onToggleActivity: (activityId: string, isActive: boolean) => void
+  onDeleteActivity: (activityId: string) => void
 }
 
-function SortableActivity({ activity, dayNumber, onEditActivity, onToggleActivity }: SortableActivityProps) {
+function SortableActivity({ activity, dayNumber, onEditActivity, onToggleActivity, onDeleteActivity }: SortableActivityProps) {
   const {
     attributes,
     listeners,
@@ -47,37 +51,37 @@ function SortableActivity({ activity, dayNumber, onEditActivity, onToggleActivit
   }
 
   const getActivityIcon = (type: string) => {
-    switch (type.toLowerCase()) {
-      case 'transporte':
-        return '🚗'
-      case 'visita':
-        return '🏛️'
-      case 'gastronomía':
+    switch (type.toUpperCase()) {
+      case 'AM':
+        return '🌅'
+      case 'PM':
+        return '🌇'
+      case 'BUS':
+        return '🚌'
+      case 'FLIGHT':
+        return '✈️'
+      case 'DINNER':
         return '🍽️'
-      case 'cultura':
-        return '🎨'
-      case 'aventura':
-        return '🏔️'
-      case 'relajación':
-        return '🧘'
+      case 'SHOP':
+        return '🛍️'
       default:
         return '📍'
     }
   }
 
   const getActivityColor = (type: string) => {
-    switch (type.toLowerCase()) {
-      case 'transporte':
+    switch (type.toUpperCase()) {
+      case 'AM':
         return 'warning'
-      case 'visita':
+      case 'PM':
         return 'primary'
-      case 'gastronomía':
+      case 'BUS':
         return 'secondary'
-      case 'cultura':
-        return 'success'
-      case 'aventura':
+      case 'FLIGHT':
         return 'danger'
-      case 'relajación':
+      case 'DINNER':
+        return 'success'
+      case 'SHOP':
         return 'default'
       default:
         return 'default'
@@ -148,6 +152,16 @@ function SortableActivity({ activity, dayNumber, onEditActivity, onToggleActivit
                 >
                   {activity.active ? <IconEyeOff size={14} /> : <IconEye size={14} />}
                 </Button>
+                <Button
+                  size="sm"
+                  isIconOnly
+                  variant="light"
+                  color="danger"
+                  onPress={() => onDeleteActivity(activity.id_activity)}
+                  title="Eliminar actividad permanentemente"
+                >
+                  <IconTrash size={14} />
+                </Button>
               </div>
             </div>
           </div>
@@ -186,9 +200,11 @@ interface SortableDayProps {
   onEditActivity: (activity: Activity) => void
   onToggleDay: (dayId: string, isActive: boolean) => void
   onToggleActivity: (dayId: string, activityId: string, isActive: boolean) => void
+  onDeleteDay: (dayId: string) => void
+  onDeleteActivity: (dayId: string, activityId: string) => void
 }
 
-function SortableDay({ day, dayNumber, onUpdateActivities, onAddActivity, onEditDay, onEditActivity, onToggleDay, onToggleActivity }: SortableDayProps) {
+function SortableDay({ day, dayNumber, onUpdateActivities, onAddActivity, onEditDay, onEditActivity, onToggleDay, onToggleActivity, onDeleteDay, onDeleteActivity }: SortableDayProps) {
   const [activities, setActivities] = useState(day.activities || [])
   const [activeActivityId, setActiveActivityId] = useState<string | null>(null)
   
@@ -307,6 +323,16 @@ function SortableDay({ day, dayNumber, onUpdateActivities, onAddActivity, onEdit
                 >
                   {day.active ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                 </Button>
+                <Button
+                  size="sm"
+                  isIconOnly
+                  variant="light"
+                  color="danger"
+                  onPress={() => onDeleteDay(day.id_day)}
+                  title="Eliminar día permanentemente"
+                >
+                  <IconTrash size={16} />
+                </Button>
               </div>
             </div>
             <h3 className={`text-lg font-semibold text-foreground mb-1 ${!day.active ? 'line-through' : ''}`}>
@@ -379,6 +405,7 @@ function SortableDay({ day, dayNumber, onUpdateActivities, onAddActivity, onEdit
                           dayNumber={dayNumber}
                           onEditActivity={onEditActivity}
                           onToggleActivity={(activityId, isActive) => onToggleActivity(day.id_day, activityId, isActive)}
+                          onDeleteActivity={(activityId) => onDeleteActivity(day.id_day, activityId)}
                         />
                       ))}
                     </div>
@@ -424,6 +451,9 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
   const [selectedDayId, setSelectedDayId] = useState<string>('')
   const [selectedDayToEdit, setSelectedDayToEdit] = useState<Day | null>(null)
   const [selectedActivityToEdit, setSelectedActivityToEdit] = useState<Activity | null>(null)
+
+  // Hook para modal de confirmación
+  const { showConfirmModal, ConfirmModal } = useConfirmModal()
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -669,6 +699,65 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
     }
   }
 
+  const handleDeleteDay = async (dayId: string) => {
+    const dayToDelete = days.find(day => day.id_day === dayId)
+    if (!dayToDelete) return
+
+    const activityCount = dayToDelete.activities.length
+
+    showConfirmModal(
+      'Eliminar día',
+      `¿Estás seguro de que quieres eliminar este día permanentemente? ${
+        activityCount > 0 
+          ? `También se eliminarán ${activityCount} ${activityCount === 1 ? 'actividad' : 'actividades'}.` 
+          : ''
+      } Esta acción no se puede deshacer.`,
+      async () => {
+        try {
+          await deleteDay(dayId)
+          setDays(prevDays => prevDays.filter(day => day.id_day !== dayId))
+          toast.success('Día eliminado correctamente')
+        } catch (error) {
+          console.error('Error deleting day:', error)
+          toast.error('Error al eliminar el día')
+        }
+      },
+      'danger'
+    )
+  }
+
+  const handleDeleteActivity = async (dayId: string, activityId: string) => {
+    const day = days.find(d => d.id_day === dayId)
+    const activity = day?.activities.find(a => a.id_activity === activityId)
+    
+    if (!activity) return
+
+    showConfirmModal(
+      'Eliminar actividad',
+      `¿Estás seguro de que quieres eliminar la actividad "${activity.activity_description}" permanentemente? Esta acción no se puede deshacer.`,
+      async () => {
+        try {
+          await deleteActivity(activityId)
+          setDays(prevDays => 
+            prevDays.map(day => 
+              day.id_day === dayId 
+                ? { 
+                    ...day, 
+                    activities: day.activities.filter(activity => activity.id_activity !== activityId)
+                  }
+                : day
+            )
+          )
+          toast.success('Actividad eliminada correctamente')
+        } catch (error) {
+          console.error('Error deleting activity:', error)
+          toast.error('Error al eliminar la actividad')
+        }
+      },
+      'danger'
+    )
+  }
+
   // Estados de carga y error
   if (isLoading) {
     return (
@@ -752,6 +841,8 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
                   onEditActivity={handleEditActivity}
                   onToggleDay={handleToggleDay}
                   onToggleActivity={handleToggleActivity}
+                  onDeleteDay={handleDeleteDay}
+                  onDeleteActivity={handleDeleteActivity}
                 />
               ))}
             </div>
@@ -854,6 +945,9 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
           />
         )}
       </Modal>
+
+      {/* Modal de confirmación */}
+      <ConfirmModal />
     </div>
   )
 }

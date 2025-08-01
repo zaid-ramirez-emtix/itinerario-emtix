@@ -396,6 +396,58 @@ export async function toggleActivityActive(activityId: string, active: boolean):
 // ============================================================================
 
 /**
+ * Elimina un día y todas sus actividades
+ */
+export async function deleteDay(dayId: string): Promise<void> {
+  try {
+    // Primero eliminar todas las actividades del día
+    const { error: activitiesError } = await supabase
+      .from('activity')
+      .delete()
+      .eq('id_day', dayId)
+
+    if (activitiesError) {
+      console.error('Error deleting activities:', activitiesError)
+      throw new Error('Error al eliminar las actividades del día')
+    }
+
+    // Luego eliminar el día
+    const { error: dayError } = await supabase
+      .from('day')
+      .delete()
+      .eq('id_day', dayId)
+
+    if (dayError) {
+      console.error('Error deleting day:', dayError)
+      throw new Error('Error al eliminar el día')
+    }
+  } catch (error) {
+    console.error('Error in deleteDay:', error)
+    throw error
+  }
+}
+
+/**
+ * Elimina una actividad específica
+ */
+export async function deleteActivity(activityId: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('activity')
+      .delete()
+      .eq('id_activity', activityId)
+
+    if (error) {
+      console.error('Error deleting activity:', error)
+      throw new Error('Error al eliminar la actividad')
+    }
+  } catch (error) {
+    console.error('Error in deleteActivity:', error)
+    throw error
+  }
+}
+
+/**
  * Obtiene todas las ciudades disponibles
  */
 export async function getCities() {

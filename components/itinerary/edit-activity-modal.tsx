@@ -15,12 +15,12 @@ interface EditActivityModalProps {
 }
 
 const activityTypes = [
-  { key: 'Transporte', label: 'Transporte', icon: '🚗' },
-  { key: 'Visita', label: 'Visita', icon: '🏛️' },
-  { key: 'Gastronomía', label: 'Gastronomía', icon: '🍽️' },
-  { key: 'Cultura', label: 'Cultura', icon: '🎨' },
-  { key: 'Aventura', label: 'Aventura', icon: '🏔️' },
-  { key: 'Relajación', label: 'Relajación', icon: '🧘' },
+  { key: 'AM', label: 'Mañana', icon: '🌅' },
+  { key: 'PM', label: 'Tarde', icon: '🌇' },
+  { key: 'BUS', label: 'Autobús', icon: '🚌' },
+  { key: 'FLIGHT', label: 'Vuelo', icon: '✈️' },
+  { key: 'DINNER', label: 'Cena/Comida', icon: '🍽️' },
+  { key: 'SHOP', label: 'Compras', icon: '🛍️' },
 ]
 
 export function EditActivityModal({ activity, onActivityUpdated, onClose }: EditActivityModalProps) {
