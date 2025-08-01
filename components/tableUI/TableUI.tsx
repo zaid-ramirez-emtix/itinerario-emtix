@@ -39,7 +39,7 @@ import { AddItineraryModal } from '@/components/itinerary/add-itinerary-modal';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 
-import { useMemoizedCallback } from './use-memoized-callback';
+import { useMemoizedCallback } from '@/hooks/useMemoizedCallback';
 
 import { CopyText } from './copy-text';
 import { EyeFilledIcon } from './eye';
@@ -48,30 +48,26 @@ import { DeleteFilledIcon } from './delete';
 import { ArrowDownIcon } from './arrow-down';
 import { ArrowUpIcon } from './arrow-up';
 
-import { Column } from './tableInterfaces';
+import { Column } from './types';
 
-export default function TableUI({ 
-  columns, 
-  data, 
-  title, 
-  buttonsAdd, 
-  onDataChange 
-}: { 
-  columns: Column[]
-  data: any[]
-  title: string
-  buttonsAdd: string[]
-  onDataChange?: (newData: any[]) => void
+export default function TableUI({
+  columns,
+  data,
+  title,
+  buttonsAdd,
+  onDataChange,
+}: {
+  columns: Column[];
+  data: any[];
+  title: string;
+  buttonsAdd: string[];
+  onDataChange?: (newData: any[]) => void;
 }) {
   const [filterValue, setFilterValue] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
   const [visibleColumns, setVisibleColumns] = useState<Selection>(new Set(columns.map((col) => col.uid)));
   const [rowsPerPage] = useState(10);
   const [page, setPage] = useState(1);
-  const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
-    column: 'memberInfo',
-    direction: 'ascending',
-  });
 
   const [workerTypeFilter, setWorkerTypeFilter] = React.useState('all');
   const [startDateFilter, setStartDateFilter] = React.useState('all');
@@ -79,49 +75,41 @@ export default function TableUI({
   // Modal state para agregar itinerario
   const { isOpen: isAddModalOpen, openModal: openAddModal, closeModal: closeAddModal } = useModal();
 
-  // Effect para detectar cambios en data prop
-  useEffect(() => {
-    // Log removido para limpiar código
-  }, [data]);
-
+  // FILTRADO Y CONFIGURACIÓN DE INPUT SEARCH
+  // Configurar el input de search para filtrar la columna especificada
   const filterColumns = columns.filter((col) => col.filterSearch);
   if (filterColumns.length > 1) {
     console.warn('Más de una columna tiene filterSearch: true. Se usará solo la primera:', filterColumns[0].uid);
   }
 
   const filterColumn = filterColumns[0]?.uid;
+  const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
+    column: filterColumns[0]?.uid,
+    direction: filterColumns[0]?.sortDirection || 'ascending',
+  });
 
+  // Manejar el estado de la columnas que estamos ordenando
   const headerColumns = useMemo(() => {
-    if (visibleColumns === 'all') return columns;
-
     return columns
       .map((item) => {
-        if (item.uid === sortDescriptor.column) {
+        if (item.uid === sortDescriptor.column)
           return {
             ...item,
             sortDirection: sortDescriptor.direction,
           };
-        }
 
-        return item;
+        const { sortDirection, ...rest } = item;
+
+        return rest;
       })
       .filter((column) => Array.from(visibleColumns).includes(column.uid));
   }, [visibleColumns, sortDescriptor]);
 
-  const itemFilter = useCallback(
-    (col: any) => {
-      let allWorkerType = workerTypeFilter === 'all';
-      let allStartDate = startDateFilter === 'all';
+  useEffect(() => {
+    console.log('headerColumns', headerColumns);
+  }, [headerColumns]);
 
-      return (
-        (allWorkerType || workerTypeFilter === col.representative.toLowerCase()) &&
-        (allStartDate ||
-          new Date(new Date().getTime() - +(startDateFilter.match(/(\d+)(?=Days)/)?.[0] ?? 0) * 24 * 60 * 60 * 1000) <= new Date(col.startDate))
-      );
-    },
-    [startDateFilter, workerTypeFilter]
-  );
-
+  // Obtener los elementos filtrados por el input search
   const filteredItems = useMemo(() => {
     let filteredUsers = [...data];
 
@@ -132,11 +120,8 @@ export default function TableUI({
           .includes(filterValue.toLowerCase())
       );
     }
-
-    filteredUsers = filteredUsers.filter(itemFilter);
-
     return filteredUsers;
-  }, [filterValue, itemFilter]);
+  }, [filterValue]);
 
   const pages = Math.ceil(filteredItems.length / rowsPerPage) || 1;
 
@@ -147,6 +132,7 @@ export default function TableUI({
     return filteredItems.slice(start, end);
   }, [page, filteredItems, rowsPerPage]);
 
+  // Ordenar los datos
   const sortedItems = useMemo(() => {
     return [...items].sort((a: any, b: any) => {
       const col = sortDescriptor.column;
@@ -160,7 +146,9 @@ export default function TableUI({
     });
   }, [sortDescriptor, items]);
 
+  // Obtener las claves de los elementos seleccionados con el checkbox izquierdo
   const filterSelectedKeys = useMemo(() => {
+    console.log('selectedKeys', selectedKeys);
     if (selectedKeys === 'all') return selectedKeys;
     let resultKeys = new Set<Key>();
 
@@ -185,8 +173,10 @@ export default function TableUI({
   const { getButtonProps: getEyesProps } = useButton({ ref: eyesRef });
   const { getButtonProps: getEditProps } = useButton({ ref: editRef });
   const { getButtonProps: getDeleteProps } = useButton({ ref: deleteRef });
-  const getMemberInfoProps = useMemoizedCallback(() => ({
-    onClick: handleMemberClick,
+  const getColumnInfoProps = useMemoizedCallback((column: Column) => ({
+    onClick: () => {
+      handleColumnClick(column);
+    },
   }));
 
   const renderCell = useMemoizedCallback((user: any, columnKey: React.Key) => {
@@ -269,9 +259,11 @@ export default function TableUI({
               variant="flat"
               onPress={() => handleToggleStatus(user.id, user.status === 'Activo')}
               startContent={
-                user.status === 'Activo' ? 
-                  <Icon icon="solar:eye-closed-linear" width={16} height={16} /> : 
+                user.status === 'Activo' ? (
+                  <Icon icon="solar:eye-closed-linear" width={16} height={16} />
+                ) : (
                   <Icon icon="solar:eye-linear" width={16} height={16} />
+                )
               }
             >
               {user.status === 'Activo' ? 'Desactivar' : 'Activar'}
@@ -388,14 +380,14 @@ export default function TableUI({
                     Ordenar
                   </Button>
                 </DropdownTrigger>
-                <DropdownMenu aria-label="Ordenar" items={headerColumns.filter((c) => !['actions', 'teams'].includes(c.uid))}>
-                  {(item) => (
+                <DropdownMenu aria-label="Ordenar" items={headerColumns.filter((c) => !['actions', 'teams'].includes(c.uid) && c.visible !== false)} selectedKeys={[sortDescriptor.column]} selectionMode="single">
+                  {(item: Column) => (
                     <DropdownItem
                       key={item.uid}
                       onPress={() => {
                         setSortDescriptor({
                           column: item.uid,
-                          direction: sortDescriptor.direction === 'ascending' ? 'descending' : 'ascending',
+                          direction: item.sortDirection === 'ascending' ? 'descending' : 'ascending',
                         });
                       }}
                     >
@@ -405,7 +397,6 @@ export default function TableUI({
                 </DropdownMenu>
               </Dropdown>
             </div>
-            {/* TODO: agregar un apartado en donde se visualize el sort de datos */}
             <div>
               <Dropdown closeOnSelect={false}>
                 <DropdownTrigger>
@@ -420,7 +411,7 @@ export default function TableUI({
                 <DropdownMenu
                   disallowEmptySelection
                   aria-label="Columnas"
-                  items={columns.filter((c) => !['actions'].includes(c.uid))}
+                  items={columns.filter((c) => !['actions', 'teams'].includes(c.uid) && c.visible !== false)}
                   selectedKeys={visibleColumns}
                   selectionMode="multiple"
                   onSelectionChange={setVisibleColumns}
@@ -472,13 +463,13 @@ export default function TableUI({
         </div>
         <div className="flex gap-3">
           {buttonsAdd.map((label, index) => (
-            <Button 
-              key={index} 
-              color="primary" 
+            <Button
+              key={index}
+              color="primary"
               endContent={<Icon icon="solar:add-circle-bold" width={20} />}
               onPress={() => {
                 if (label === 'Nuevo itinerario') {
-                  openAddModal()
+                  openAddModal();
                 }
               }}
             >
@@ -515,76 +506,77 @@ export default function TableUI({
     );
   }, [filterSelectedKeys, page, pages, filteredItems.length, onPreviousPage, onNextPage]);
 
-  const handleMemberClick = useMemoizedCallback(() => {
-    setSortDescriptor({
-      column: 'memberInfo',
-      direction: sortDescriptor.direction === 'ascending' ? 'descending' : 'ascending',
-    });
+  const handleColumnClick = useMemoizedCallback((column: Column) => {
+    setSortDescriptor((prev) => ({
+      column: column.uid,
+      direction: column.sortDirection ? (prev.direction === 'ascending' ? 'descending' : 'ascending') : 'ascending',
+    }));
   });
 
+  // TODO: Esto no va aquí
+
   // Función para manejar cuando se agrega un nuevo itinerario
-  const handleItineraryAdded = useCallback((newItinerary: any) => {
-    if (onDataChange) {
-      // Crear el objeto normalizado como se hace en la página principal
-      const createLocalDate = (dateString: string) => {
-        const dateParts = dateString.split('T')[0].split('-');
-        return new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-      };
-
-      const normalizedItinerary = {
-        id: newItinerary.id_itinerary,
-        title: newItinerary.title,
-        destination: newItinerary.destination,
-        language: `${newItinerary.language}`.toUpperCase(),
-        start_date: createLocalDate(newItinerary.start_date),
-        end_date: createLocalDate(newItinerary.end_date),
-        status: newItinerary.active ? 'Activo' : 'Inactivo',
-      };
-
-      // Agregar el nuevo itinerario y ordenar por fecha de inicio (más recientes primero)
-      const updatedData = [normalizedItinerary, ...data].sort((a, b) => {
-        return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
-      });
-      
-      onDataChange(updatedData);
-    }
-  }, [data, onDataChange]);
-
-  // Función para manejar el cambio de estado (activar/desactivar)
-  const handleToggleStatus = useCallback(async (itineraryId: string, isCurrentlyActive: boolean) => {
-    try {
-      const supabase = createClient();
-      const newActiveStatus = !isCurrentlyActive;
-      
-      // Actualizar en Supabase
-      const { error } = await supabase
-        .from('itinerary')
-        .update({ active: newActiveStatus })
-        .eq('id_itinerary', itineraryId);
-
-      if (error) {
-        console.error('Error al actualizar estado:', error);
-        toast.error('Error al actualizar el estado del itinerario');
-        return;
-      }
-
-      // Actualizar datos localmente
-      const updatedData = data.map(item => 
-        item.id === itineraryId 
-          ? { ...item, status: newActiveStatus ? 'Activo' : 'Inactivo' }
-          : item
-      );
-
+  const handleItineraryAdded = useCallback(
+    (newItinerary: any) => {
       if (onDataChange) {
+        // Crear el objeto normalizado como se hace en la página principal
+        const createLocalDate = (dateString: string) => {
+          const dateParts = dateString.split('T')[0].split('-');
+          return new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+        };
+
+        const normalizedItinerary = {
+          id: newItinerary.id_itinerary,
+          title: newItinerary.title,
+          destination: newItinerary.destination,
+          language: `${newItinerary.language}`.toUpperCase(),
+          start_date: createLocalDate(newItinerary.start_date),
+          end_date: createLocalDate(newItinerary.end_date),
+          status: newItinerary.active ? 'Activo' : 'Inactivo',
+        };
+
+        // Agregar el nuevo itinerario y ordenar por fecha de inicio (más recientes primero)
+        const updatedData = [normalizedItinerary, ...data].sort((a, b) => {
+          return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
+        });
+
         onDataChange(updatedData);
       }
+    },
+    [data, onDataChange]
+  );
 
-      toast.success(`Itinerario ${newActiveStatus ? 'activado' : 'desactivado'} correctamente`);
-    } catch (error) {
-      console.error('Error al cambiar estado:', error);
-      toast.error('Error al actualizar el estado del itinerario');
-    }
-  }, [data, onDataChange]);
+  // Función para manejar el cambio de estado (activar/desactivar)
+  const handleToggleStatus = useCallback(
+    async (itineraryId: string, isCurrentlyActive: boolean) => {
+      try {
+        const supabase = createClient();
+        const newActiveStatus = !isCurrentlyActive;
+
+        // Actualizar en Supabase
+        const { error } = await supabase.from('itinerary').update({ active: newActiveStatus }).eq('id_itinerary', itineraryId);
+
+        if (error) {
+          console.error('Error al actualizar estado:', error);
+          toast.error('Error al actualizar el estado del itinerario');
+          return;
+        }
+
+        // Actualizar datos localmente
+        const updatedData = data.map((item) => (item.id === itineraryId ? { ...item, status: newActiveStatus ? 'Activo' : 'Inactivo' } : item));
+
+        if (onDataChange) {
+          onDataChange(updatedData);
+        }
+
+        toast.success(`Itinerario ${newActiveStatus ? 'activado' : 'desactivado'} correctamente`);
+      } catch (error) {
+        console.error('Error al cambiar estado:', error);
+        toast.error('Error al actualizar el estado del itinerario');
+      }
+    },
+    [data, onDataChange]
+  );
 
   return (
     <>
@@ -606,31 +598,33 @@ export default function TableUI({
           onSelectionChange={onSelectionChange}
           onSortChange={setSortDescriptor}
         >
-          <TableHeader columns={headerColumns}>
-            {(column) => (
+          <TableHeader columns={headerColumns.filter((c) => c.visible !== false)}>
+            {(column: Column) => (
               <TableColumn
                 key={column.uid}
                 align={column.uid === 'actions' ? 'end' : 'start'}
                 className={cn([column.uid === 'actions' ? 'flex items-center justify-end px-[20px]' : ''])}
               >
-                {column.uid === 'memberInfo' ? (
-                  <div {...getMemberInfoProps()} className="flex w-full cursor-pointer items-center justify-between">
-                    {column.name}
-                    {column.sortDirection === 'ascending' ? (
+                <div
+                  {...getColumnInfoProps(column)}
+                  className={`${column.uid !== 'actions' && 'cursor-pointer '}flex w-full items-center justify-between`}
+                >
+                  {column.name}
+                  {column.sortDirection &&
+                    column.uid !== 'actions' &&
+                    (column.sortDirection === 'ascending' ? (
                       <ArrowUpIcon className="text-default-400" />
                     ) : (
                       <ArrowDownIcon className="text-default-400" />
-                    )}
-                  </div>
-                ) : column.info ? (
+                    ))}
+                </div>
+                {column.info && (
                   <div className="flex min-w-[108px] items-center justify-between">
                     {column.name}
                     <Tooltip content={column.info}>
                       <Icon className="text-default-300" height={16} icon="solar:info-circle-linear" width={16} />
                     </Tooltip>
                   </div>
-                ) : (
-                  column.name
                 )}
               </TableColumn>
             )}
@@ -642,16 +636,8 @@ export default function TableUI({
       </div>
 
       {/* Modal para agregar itinerario */}
-      <Modal 
-        isOpen={isAddModalOpen} 
-        onClose={closeAddModal}
-        title="Crear Nuevo Itinerario"
-        size="lg"
-      >
-        <AddItineraryModal 
-          onItineraryAdded={handleItineraryAdded}
-          onClose={closeAddModal}
-        />
+      <Modal isOpen={isAddModalOpen} onClose={closeAddModal} title="Crear Nuevo Itinerario" size="lg">
+        <AddItineraryModal onItineraryAdded={handleItineraryAdded} onClose={closeAddModal} />
       </Modal>
     </>
   );

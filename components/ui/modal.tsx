@@ -1,26 +1,26 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback } from 'react'
-import { createPortal } from "react-dom";
-import { XIcon } from "../icons";
+import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { XIcon } from '../icons';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
-  size?: "sm" | "md" | "lg" | "xl" | "full";
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
   closeOnEscape?: boolean;
 }
 
 const sizeClasses = {
-  sm: "max-w-sm",
-  md: "max-w-md",
-  lg: "max-w-lg", 
-  xl: "max-w-xl",
-  full: "max-w-full mx-4"
+  sm: 'max-w-sm',
+  md: 'max-w-md',
+  lg: 'max-w-lg',
+  xl: 'max-w-xl',
+  full: 'max-w-full mx-4',
 };
 
 export function Modal({
@@ -28,10 +28,10 @@ export function Modal({
   onClose,
   title,
   children,
-  size = "md",
+  size = 'md',
   showCloseButton = true,
   closeOnOverlayClick = true,
-  closeOnEscape = true
+  closeOnEscape = true,
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -44,19 +44,19 @@ export function Modal({
     if (!closeOnEscape) return;
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
 
     if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
     }
 
     return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "unset";
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose, closeOnEscape]);
 
@@ -71,41 +71,30 @@ export function Modal({
   const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay */}
-      <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-        onClick={handleOverlayClick}
-      />
-      
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={handleOverlayClick} />
+
       {/* Modal */}
-      <div className={`
+      <div
+        className={`
         relative w-full ${sizeClasses[size]} 
         bg-background border border-divider rounded-lg shadow-lg
-        animate-in fade-in-0 zoom-in-95 duration-200
-      `}>
+        animate-in fade-in-0 zoom-in-95 duration-200 
+      `}
+      >
         {/* Header */}
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between p-6 border-b border-divider">
-            {title && (
-              <h2 className="text-lg font-semibold text-foreground">
-                {title}
-              </h2>
-            )}
+            {title && <h2 className="text-lg font-semibold text-foreground">{title}</h2>}
             {showCloseButton && (
-              <button
-                onClick={onClose}
-                className="p-1 rounded-md hover:bg-default-100 transition-colors"
-                aria-label="Cerrar modal"
-              >
+              <button onClick={onClose} className="p-1 rounded-md hover:bg-default-100 transition-colors" aria-label="Cerrar modal">
                 <XIcon size={20} />
               </button>
             )}
           </div>
         )}
-        
+
         {/* Content */}
-        <div className="p-6">
-          {children}
-        </div>
+        <div className="p-6 max-h-[80vh] overflow-y-auto">{children}</div>
       </div>
     </div>
   );
@@ -119,7 +108,7 @@ export function useModal(initialState = false) {
 
   const openModal = useCallback(() => setIsOpen(true), []);
   const closeModal = useCallback(() => setIsOpen(false), []);
-  const toggleModal = useCallback(() => setIsOpen(prev => !prev), []);
+  const toggleModal = useCallback(() => setIsOpen((prev) => !prev), []);
 
   return {
     isOpen,

@@ -33,15 +33,6 @@ export default function SidebarComponent() {
           <span className="text-small font-bold uppercase">Acme</span>
         </div>
 
-       {/*
-<div className="flex items-center gap-3 px-4 pb-4">
-  <Avatar isBordered size="sm" src="https://i.pravatar.cc/150?u=a04258114e29026708c" />
-  <div className="flex flex-col">
-    <p className="text-small font-medium text-default-600">Kate Moore</p>
-    <p className="text-tiny text-default-400">Customer Support</p>
-  </div>
-</div>
-*/}
         {/* Navigation */}
         <div className="flex-1 overflow-hidden">
           <ScrollShadow className="h-full px-2">

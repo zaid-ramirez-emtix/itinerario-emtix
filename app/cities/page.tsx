@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation';
 import TableUI from '@/components/tableUI/TableUI';
 
 import { Column } from '@/components/tableUI/types';
-import { StatusOptions } from '@/components/tableUI/mockData';
+import { createLocalDate } from '@/helpers/dates';
 
 export default function App() {
   const [data, setData] = useState<any[]>([]);
@@ -30,7 +30,7 @@ export default function App() {
 
       setUser(authUser);
 
-      const { data: itineraries, error } = await supabase.from('itinerary').select('*')
+      const { data: cities, error } = await supabase.from('city').select('*');
 
       if (error) {
         console.error('Error al obtener datos:', error.message);
@@ -39,30 +39,18 @@ export default function App() {
       }
 
       // Normalizar los datos para utilizarlos en la tabla
-      const normalizedUsers =
-        itineraries.map((itinerary) => {
-          const status: StatusOptions = itinerary.active ? 'Activo' : 'Inactivo';
-
-          // Función para crear fechas locales evitando problemas de zona horaria
-          const createLocalDate = (dateString: string) => {
-            const dateParts = dateString.split('T')[0].split('-');
-            return new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-          };
-
+      const normalizedCities =
+        cities.map((city) => {
           return {
-            id: itinerary.id_itinerary,
-            title: itinerary.title,
-            destination: itinerary.destination,
-            language: `${itinerary.language}`.toUpperCase(),
-            start_date: createLocalDate(itinerary.start_date),
-            end_date: createLocalDate(itinerary.end_date),
-            status,
-            created_at: createLocalDate(itinerary.created_at),
-            updated_at: createLocalDate(itinerary.updated_at),
+            id: city.id_city,
+            name: city.city_name,
+            image: city.city_image_path,
+            created_at: createLocalDate(city.created_at),
+            updated_at: createLocalDate(city.updated_at),
           };
         }) || [];
 
-      setData(normalizedUsers);
+      setData(normalizedCities);
       setLoading(false);
     }
 
@@ -72,12 +60,8 @@ export default function App() {
   // Crear las columnas de las tablas
   const columns: Column[] = [
     { name: 'Clave', uid: 'id', columnType: 'default', visible: false },
-    { name: 'Título', uid: 'title', columnType: 'default', sortDirection: 'ascending', filterSearch: true },
-    { name: 'Destino', uid: 'destination', columnType: 'default' },
-    { name: 'Lenguaje', uid: 'language', columnType: 'default' },
-    { name: 'Fecha de inicio', uid: 'start_date', columnType: 'date' },
-    { name: 'Fecha de fin', uid: 'end_date', columnType: 'date' },
-    { name: 'Estatus', uid: 'status', columnType: 'status' },
+    { name: 'Nombre', uid: 'name', columnType: 'default', sortDirection: 'ascending', filterSearch: true },
+    { name: 'Imagen', uid: 'image', columnType: 'default' },
     { name: 'Fecha de creación', uid: 'created_at', columnType: 'date' },
     { name: 'Última modificación', uid: 'updated_at', columnType: 'date' },
     { name: 'Acciones', uid: 'actions', columnType: 'itinerary-actions' },
@@ -86,7 +70,7 @@ export default function App() {
   // Función para refrescar datos desde Supabase
   const refreshData = async () => {
     const supabase = createClient();
-    const { data: itineraries, error } = await supabase.from('itinerary').select('*')
+    const { data: cities, error } = await supabase.from('city').select('*');
 
     if (error) {
       console.error('Error al refrescar datos:', error.message);
@@ -94,29 +78,20 @@ export default function App() {
     }
 
     // Normalizar los datos
-    const normalizedUsers =
-      itineraries?.map((itinerary) => {
-        const status: StatusOptions = itinerary.active ? 'Activo' : 'Inactivo';
-
-        const createLocalDate = (dateString: string) => {
-          const dateParts = dateString.split('T')[0].split('-');
-          return new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-        };
-
+    const normalizedCities =
+      cities.map((city) => {
         return {
-          id: itinerary.id_itinerary,
-          title: itinerary.title,
-          destination: itinerary.destination,
-          language: `${itinerary.language}`.toUpperCase(),
-          start_date: createLocalDate(itinerary.start_date),
-          end_date: createLocalDate(itinerary.end_date),
-          status,
+          id: city.id_city,
+          name: city.city_name,
+          image: city.city_image_path,
+          created_at: createLocalDate(city.created_at),
+          updated_at: createLocalDate(city.updated_at),
         };
       }) || [];
 
-    setData(normalizedUsers);
+    setData(normalizedCities);
     setTableKey((prev) => prev + 1);
-    console.log('🔄 Datos refrescados desde Supabase:', normalizedUsers.length, 'items');
+    console.log('🔄 Datos refrescados desde Supabase:', normalizedCities.length, 'items');
   };
 
   // Función para manejar cambios en los datos
@@ -135,8 +110,6 @@ export default function App() {
     return <div className="flex min-h-screen items-center justify-center">Cargando...</div>;
   }
 
-  
-
   return (
     <main className="flex min-h-screen flex-col items-center justify-between">
       <section>
@@ -144,8 +117,8 @@ export default function App() {
           key={tableKey} // Key que cambia para forzar re-render
           columns={columns}
           data={data}
-          title="Itinerarios"
-          buttonsAdd={['Nuevo itinerario']}
+          title="Catálogo de ciudades"
+          buttonsAdd={['Agregar nueva ciudad']}
           onDataChange={handleDataChange}
         />
       </section>

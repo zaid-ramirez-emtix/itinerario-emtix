@@ -1,91 +1,91 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { Input, Button, DatePicker } from '@heroui/react'
-import { IconPlus, IconX } from '@tabler/icons-react'
-import { toast } from 'sonner'
-import { ItineraryInsert } from '@/types/itinerary'
-import { createClient } from '@/utils/supabase/client'
-import { LanguageSearchSelect } from '@/components/ui/language-search-select'
-import { CalendarDate } from "@internationalized/date"
-import { I18nProvider } from "@react-aria/i18n"
+import { useEffect, useState } from 'react';
+import { Input, Button, DatePicker } from '@heroui/react';
+import { IconPlus, IconX } from '@tabler/icons-react';
+import { toast } from 'sonner';
+import { ItineraryInsert } from '@/types/itinerary';
+import { createClient } from '@/utils/supabase/client';
+import { LanguageSearchSelect } from '@/components/ui/language-search-select';
+import { CalendarDate } from '@internationalized/date';
+import { I18nProvider } from '@react-aria/i18n';
+import InputImage from '@/components/formElements/InputImage';
 
 interface AddItineraryModalProps {
-  onItineraryAdded: (itinerary: any) => void
-  onClose: () => void
+  onItineraryAdded: (itinerary: any) => void;
+  onClose: () => void;
 }
 
 export function AddItineraryModal({ onItineraryAdded, onClose }: AddItineraryModalProps) {
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<ItineraryInsert>({
-    title: '',
+    active: true,
     destination: '',
-    language: '',
-    start_date: '',
     end_date: '',
     id_theme: 'ab92c40f-762f-4a61-8d80-590f83473601', // Mismo ID hardcodeado que en el formulario original
-    active: true
-  })
+    language: '',
+    path_img_back: '',
+    path_img_client: '',
+    path_img_fair: '',
+    path_img_front: '',
+    start_date: '',
+    title: '',
+  });
+
+  useEffect(() => {
+    console.log('FormData actualizado:', formData);
+  }, [formData]);
 
   // Estados separados para las fechas del DatePicker
-  const [startDate, setStartDate] = useState<CalendarDate | null>(null)
-  const [endDate, setEndDate] = useState<CalendarDate | null>(null)
+  const [startDate, setStartDate] = useState<CalendarDate | null>(null);
+  const [endDate, setEndDate] = useState<CalendarDate | null>(null);
 
-  const languages = [
-    { key: "es", label: "Español" },
-    { key: "en", label: "English" },
-  ]
+  const LANGUAGES = [
+    { key: 'es', label: 'Español' },
+    { key: 'en', label: 'English' },
+  ];
 
-  const supabase = createClient()
+  const supabase = createClient();
 
   const handleInputChange = (name: string, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
-    }))
-  }
+      [name]: value,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+    e.preventDefault();
+    setIsLoading(true);
 
     try {
       // Crear nuevo itinerario
-      const { data, error } = await supabase
-        .from('itinerary')
-        .insert([formData])
-        .select()
-        .single()
+      const { data, error } = await supabase.from('itinerary').insert([formData]).select().single();
 
-      if (error) throw error
+      if (error) throw error;
 
-      toast.success('¡Itinerario creado exitosamente!')
-      onItineraryAdded(data)
-      onClose()
+      toast.success('¡Itinerario creado exitosamente!');
+      onItineraryAdded(data);
+      onClose();
     } catch (error: any) {
-      console.error('Error al crear itinerario:', error)
-      toast.error(error.message || 'Error al crear el itinerario')
+      console.error('Error al crear itinerario:', error);
+      toast.error(error.message || 'Error al crear el itinerario');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <I18nProvider locale="es-ES">
       <div className="space-y-6">
         {/* Header Section */}
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
-            Nuevo Itinerario
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Completa el siguiente formulario para registrar el itinerario
-          </p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Nuevo Itinerario</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Completa el siguiente formulario para registrar el itinerario</p>
         </div>
 
         {/* Form */}
         <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleSubmit}>
-          
           {/* Título del Itinerario */}
           <div className="md:col-span-2">
             <Input
@@ -124,61 +124,96 @@ export function AddItineraryModal({ onItineraryAdded, onClose }: AddItineraryMod
 
           {/* Idioma */}
           <LanguageSearchSelect
-            options={languages}
+            isRequired
+            options={LANGUAGES}
             value={formData.language}
             onSelectionChange={(selectedKey) => handleInputChange('language', selectedKey)}
             label="Idioma del Itinerario"
             placeholder="Buscar idioma..."
-            isRequired
             isDisabled={isLoading}
           />
 
           {/* Fechas */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              📅 Fechas del Viaje
-            </label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📅 Fechas del Viaje</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <DatePicker 
-                label="Fecha de Inicio" 
+              <DatePicker
+                label="Fecha de Inicio"
                 variant="bordered"
                 size="md"
                 isDisabled={isLoading}
                 value={startDate}
                 showMonthAndYearPickers
                 onChange={(date) => {
-                  setStartDate(date)
+                  setStartDate(date);
                   if (date) {
-                    const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
-                    handleInputChange('start_date', dateStr)
+                    const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+                    handleInputChange('start_date', dateStr);
                   } else {
-                    handleInputChange('start_date', '')
+                    handleInputChange('start_date', '');
                   }
                 }}
               />
-              <DatePicker 
-                label="Fecha de Fin" 
+              <DatePicker
+                isRequired
+                label="Fecha de Fin"
                 variant="bordered"
                 size="md"
                 isDisabled={isLoading}
                 value={endDate}
                 showMonthAndYearPickers
                 onChange={(date) => {
-                  setEndDate(date)
+                  setEndDate(date);
                   if (date) {
-                    const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
-                    handleInputChange('end_date', dateStr)
+                    const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+                    handleInputChange('end_date', dateStr);
                   } else {
-                    handleInputChange('end_date', '')
+                    handleInputChange('end_date', '');
                   }
                 }}
               />
             </div>
           </div>
 
+          <InputImage
+            required={true}
+            inputTitle="Imagen portada"
+            pathImg={formData.path_img_front || ''}
+            keyObjectName="path_img_front"
+            directory="itinerary/front"
+            changeHandler={handleInputChange}
+          />
+
+          <InputImage
+            required={true}
+            inputTitle="Imagen contraportada"
+            pathImg={formData.path_img_back || ''}
+            keyObjectName="path_img_back"
+            directory="itinerary/back"
+            changeHandler={handleInputChange}
+          />
+
+          <InputImage
+            required={false}
+            inputTitle="Imagen del cliente"
+            pathImg={formData.path_img_client || ''}
+            keyObjectName="path_img_client"
+            directory="itinerary/client"
+            changeHandler={handleInputChange}
+          />
+
+          <InputImage
+            required={false}
+            inputTitle="Imagen feria"
+            pathImg={formData.path_img_fair || ''}
+            keyObjectName="path_img_fair"
+            directory="itinerary/fair"
+            changeHandler={handleInputChange}
+          />
+
           {/* Botones */}
           <div className="md:col-span-2 flex justify-end gap-3 pt-4">
-            <Button 
+            <Button
               type="button"
               variant="bordered"
               size="md"
@@ -189,8 +224,8 @@ export function AddItineraryModal({ onItineraryAdded, onClose }: AddItineraryMod
             >
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               color="primary"
               size="md"
               className="px-8"
@@ -204,5 +239,5 @@ export function AddItineraryModal({ onItineraryAdded, onClose }: AddItineraryMod
         </form>
       </div>
     </I18nProvider>
-  )
+  );
 }
