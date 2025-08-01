@@ -1,5 +1,4 @@
 
-import Dashboard from '@/components/tableUI/Dashboard';
 import { AuthForm } from '@/components/auth-form';
 
 export default async function LoginPage() {
