@@ -66,7 +66,7 @@ export async function uploadImage(
         filePath = `${directory}/${fileName}` // En subdirectorio para backs, clients, fairs, fronts
       }
     } else {
-      filePath = fileName // Para otros buckets, directamente en la raíz
+      filePath = fileName // Para otros buckets (days, cities, themes), directamente en la raíz
     }
 
     // Eliminar imagen anterior si existe

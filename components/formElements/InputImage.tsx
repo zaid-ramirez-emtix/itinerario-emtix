@@ -17,28 +17,51 @@ const handleImageUpload = async (
   try {
     stateUpdater(true);
 
+    console.log(`🔄 Iniciando subida de imagen para ${keyObjectName}:`, {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      currentImageUrl
+    });
+
     // Validar el archivo
     const validation = validateImageFile(file);
     if (!validation.isValid) {
+      console.error('❌ Validación de archivo falló:', validation.error);
       toast.error(validation.error || 'Archivo no válido');
       return;
     }
 
+    console.log('✅ Archivo validado correctamente');
+
     // Redimensionar si es necesario
+    console.log('🔄 Redimensionando imagen...');
     const resizedFile = await resizeImageIfNeeded(file, 800, 600, 0.8);
+    console.log('✅ Imagen redimensionada:', {
+      originalSize: file.size,
+      newSize: resizedFile.size
+    });
 
     // Determinar el directorio basado en el nombre del campo
     const directory = getDirectoryFromContext(keyObjectName);
+    console.log('🔄 Directorio determinado:', directory);
 
     // Subir la imagen a Supabase Storage
+    console.log('🔄 Subiendo a Supabase Storage...');
     const imageUrl = await uploadImage(resizedFile, directory, currentImageUrl);
 
-    console.log(`InputImage: Imagen subida para ${keyObjectName}:`, imageUrl);
+    console.log(`✅ Imagen subida exitosamente para ${keyObjectName}:`, imageUrl);
     changeHandler(keyObjectName, imageUrl);
-    console.log(`InputImage: changeHandler llamado para ${keyObjectName} con valor:`, imageUrl);
+    console.log(`✅ changeHandler llamado para ${keyObjectName} con valor:`, imageUrl);
     toast.success('Imagen cargada correctamente');
   } catch (error: any) {
-    console.error('Error uploading image:', error);
+    console.error('❌ Error completo uploading image:', {
+      error,
+      message: error.message,
+      stack: error.stack,
+      keyObjectName,
+      fileName: file?.name
+    });
     toast.error(error.message || 'Error al cargar la imagen');
   } finally {
     stateUpdater(false);
