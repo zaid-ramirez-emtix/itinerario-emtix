@@ -1,15 +1,16 @@
 'use client'
 
 import { Form, Input, Button } from "@heroui/react";
-import { useState, useEffect } from 'react'
 import { DatePicker } from "@heroui/react";
-import { createClient } from '@/utils/supabase/client';
-import { toast } from 'sonner';
+import { useMemo } from 'react';
 import { ItineraryInsert, ItineraryFormProps } from '@/types/itinerary';
-import { CalendarDate, parseDate } from "@internationalized/date";
 import { LanguageSearchSelect } from '@/components/ui/language-search-select'
+import { ThemeSearchSelect } from '@/components/ui/theme-search-select';
 import { I18nProvider } from "@react-aria/i18n";
-import { revalidateItinerary } from "./itinerary-server";
+import InputImage from '@/components/formElements/InputImage';
+import { useItineraryCRUD } from '@/hooks/useItineraryCRUD';
+import { useItineraryValidation } from '@/hooks/useItineraryValidation';
+import { useFormData } from '@/hooks/useFormData';
 
 export default function ItineraryForm({ 
   initialData, 
@@ -17,119 +18,76 @@ export default function ItineraryForm({
   onSuccess, 
   onCancel 
 }: ItineraryFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<ItineraryInsert>({
+  const defaultFormData: ItineraryInsert = useMemo(() => ({
     title: '',
     destination: '',
     language: '',
     start_date: '',
     end_date: '',
-    id_theme: '' // Requerido según database.ts
+    path_img_back: '',
+    path_img_client: '',
+    path_img_fair: '',
+    path_img_front: '',
+    path_itinerary_image: '',
+    id_theme: '',
+    active: true
+  }), []);
+
+  // Memorizar las opciones del hook para evitar bucles infinitos
+  const formDataOptions = useMemo(() => ({
+    initialData,
+    dateFields: [
+      { field: 'start_date' as const, stateField: 'startDate' },
+      { field: 'end_date' as const, stateField: 'endDate' }
+    ]
+  }), [initialData]);
+
+  // Hooks personalizados
+  const { formData, handleInputChange, handleDateChange, getDateState } = useFormData(
+    defaultFormData,
+    formDataOptions
+  );
+
+  const { createItinerary, updateItinerary, isLoading } = useItineraryCRUD({
+    onSuccess,
+    revalidatePath: '/itinerary'
   });
   
-  // Estados separados para las fechas del DatePicker
-  const [startDate, setStartDate] = useState<CalendarDate | null>(null);
-  const [endDate, setEndDate] = useState<CalendarDate | null>(null);
+  const { validateItinerary } = useItineraryValidation();
 
   const languages = [
     { key: "es", label: "Español" },
     { key: "en", label: "English" },
   ];
 
-  const supabase = createClient();
-
   // Efecto para inicializar los datos cuando se reciben initialData
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        title: initialData.title || '',
-        destination: initialData.destination || '',
-        language: initialData.language || '',
-        start_date: initialData.start_date || '',
-        end_date: initialData.end_date || '',
-        id_theme: initialData.id_theme || '',
-      });
-
-      // Convertir fechas string a CalendarDate para los DatePickers
-      if (initialData.start_date) {
-        try {
-          const dateStr = initialData.start_date.split('T')[0]; // Obtener solo la parte de fecha
-          setStartDate(parseDate(dateStr));
-        } catch (error) {
-          console.error('Error parsing start date:', error);
-        }
-      }
-
-      if (initialData.end_date) {
-        try {
-          const dateStr = initialData.end_date.split('T')[0]; // Obtener solo la parte de fecha
-          setEndDate(parseDate(dateStr));
-        } catch (error) {
-          console.error('Error parsing end date:', error);
-        }
-      }
-    }
-  }, [initialData]);
+  // Este useEffect ya no es necesario porque se maneja en useFormData
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
     try {
-      // const { data: { user } } = await supabase.auth.getUser();
-      
-      // if (!user) {
-      //   toast.error('Debes estar autenticado para realizar esta acción');
-      //   return;
-      // }
+      // Validar formulario
+      const validation = validateItinerary(formData);
+      if (!validation.isValid) {
+        return;
+      }
 
+      console.log('FormData antes de enviar:', formData);
+
+      // Ejecutar operación según el modo
       if (mode === 'create') {
-        // Crear nuevo itinerario
-        const { data, error } = await supabase
-          .from('itinerary')
-          .insert([
-            {
-              ...formData,
-              "id_theme": "ab92c40f-762f-4a61-8d80-590f83473601" // TODO: No dejar el tema hardcodeado
-            }
-          ])
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        toast.success('¡Itinerario creado exitosamente!');
-        revalidateItinerary('/itinerary')
-        onSuccess?.(data);
+        await createItinerary(formData);
       } else {
-        // Actualizar itinerario existente
-        const { data, error } = await supabase
-          .from('itinerary')
-          .update({
-            ...formData,
-          })
-          .eq('id_itinerary', initialData?.id_itinerary)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        revalidateItinerary('/itinerary')
-        onSuccess?.(data);
+        if (!initialData?.id_itinerary) {
+          throw new Error('ID del itinerario es requerido para la actualización');
+        }
+        await updateItinerary(formData, initialData.id_itinerary);
       }
     } catch (error: any) {
       console.error('Error al guardar itinerario:', error);
-      toast.error(error.message || 'Error al guardar el itinerario');
-    } finally {
-      setIsLoading(false);
+      // El error ya se maneja en el hook useItineraryCRUD
     }
-  };
-
-  const handleInputChange = (name: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
   };
 
   return (
@@ -199,6 +157,16 @@ export default function ItineraryForm({
               isDisabled={isLoading}
             />
 
+            {/* Tema */}
+            <ThemeSearchSelect
+              isRequired
+              value={formData.id_theme}
+              onSelectionChange={(selectedKey) => handleInputChange('id_theme', selectedKey)}
+              label="Tema del Itinerario"
+              placeholder="Seleccionar tema..."
+              isDisabled={isLoading}
+            />
+
             {/* Fechas */}
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -210,37 +178,62 @@ export default function ItineraryForm({
                   variant="bordered"
                   size="md"
                   isDisabled={isLoading}
-                  value={startDate}
+                  value={getDateState('startDate')}
                   showMonthAndYearPickers
-                  onChange={(date) => {
-                    setStartDate(date);
-                    if (date) {
-                      const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-                      handleInputChange('start_date', dateStr);
-                    } else {
-                      handleInputChange('start_date', '');
-                    }
-                  }}
+                  onChange={(date) => handleDateChange('startDate', 'start_date', date)}
                 />
                 <DatePicker 
                   label="Fecha de Fin" 
                   variant="bordered"
                   size="md"
                   isDisabled={isLoading}
-                  value={endDate}
+                  value={getDateState('endDate')}
                   showMonthAndYearPickers
-                  onChange={(date) => {
-                    setEndDate(date);
-                    if (date) {
-                      const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-                      handleInputChange('end_date', dateStr);
-                    } else {
-                      handleInputChange('end_date', '');
-                    }
-                  }}
+                  onChange={(date) => handleDateChange('endDate', 'end_date', date)}
                 />
               </div>
             </div>
+
+            {/* Campos de Imágenes */}
+            <InputImage
+              required={true}
+              inputTitle="Imagen del itinerario"
+              pathImg={formData.path_itinerary_image || ''}
+              keyObjectName="path_itinerary_image"
+              changeHandler={handleInputChange}
+            />
+
+            <InputImage
+              required={true}
+              inputTitle="Imagen portada"
+              pathImg={formData.path_img_front || ''}
+              keyObjectName="path_img_front"
+              changeHandler={handleInputChange}
+            />
+
+            <InputImage
+              required={true}
+              inputTitle="Imagen contraportada"
+              pathImg={formData.path_img_back || ''}
+              keyObjectName="path_img_back"
+              changeHandler={handleInputChange}
+            />
+
+            <InputImage
+              required={false}
+              inputTitle="Imagen del cliente"
+              pathImg={formData.path_img_client || ''}
+              keyObjectName="path_img_client"
+              changeHandler={handleInputChange}
+            />
+
+            <InputImage
+              required={false}
+              inputTitle="Imagen feria"
+              pathImg={formData.path_img_fair || ''}
+              keyObjectName="path_img_fair"
+              changeHandler={handleInputChange}
+            />
 
             {/* Botones */}
             <div className="md:col-span-2 flex justify-end gap-3 pt-4">

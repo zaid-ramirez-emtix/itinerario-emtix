@@ -16,34 +16,28 @@ import {
   TableCell,
   Input,
   Button,
-  RadioGroup,
-  Radio,
   Chip,
   Pagination,
   Tooltip,
-  useButton,
   User,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
 } from '@heroui/react';
 import { SearchIcon } from '@heroui/shared-icons';
-import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { cn } from '@heroui/react';
 import Link from 'next/link';
 import { Status } from './Status';
 import { StatusOptions } from './mockData';
 import { Modal, useModal } from '@/components/ui/modal';
+import ConfirmModal from '@/components/ui/confirm-modal';
 import { AddItineraryModal } from '@/components/itinerary/add-itinerary-modal';
-import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 
 import { useMemoizedCallback } from '@/hooks/useMemoizedCallback';
+import { useConfirmationModal } from '@/hooks/useConfirmationModal';
 
 import { CopyText } from './copy-text';
 import { EyeFilledIcon } from './eye';
-import { EditLinearIcon } from './edit';
 import { DeleteFilledIcon } from './delete';
 import { ArrowDownIcon } from './arrow-down';
 import { ArrowUpIcon } from './arrow-up';
@@ -56,12 +50,27 @@ export default function TableUI({
   title,
   buttonsAdd,
   onDataChange,
+  deleteConfig,
+  toggleStatusConfig,
 }: {
   columns: Column[];
   data: any[];
   title: string;
   buttonsAdd: string[];
   onDataChange?: (newData: any[]) => void;
+  deleteConfig?: {
+    entityName: string; // 'itinerario', 'ciudad', etc.
+    getDeleteMessage: (item: any, additionalInfo?: any) => {
+      title: string;
+      message: string;
+    };
+    onDelete: (itemId: string) => Promise<void>;
+    getAdditionalInfo?: (itemId: string) => Promise<any>;
+  };
+  toggleStatusConfig?: {
+    onToggle: (itemId: string, isCurrentlyActive: boolean) => Promise<boolean>;
+    entityName: string;
+  };
 }) {
   const [filterValue, setFilterValue] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
@@ -69,11 +78,11 @@ export default function TableUI({
   const [rowsPerPage] = useState(10);
   const [page, setPage] = useState(1);
 
-  const [workerTypeFilter, setWorkerTypeFilter] = React.useState('all');
-  const [startDateFilter, setStartDateFilter] = React.useState('all');
-
   // Modal state para agregar itinerario
   const { isOpen: isAddModalOpen, openModal: openAddModal, closeModal: closeAddModal } = useModal();
+  
+  // Hook para modal de confirmación 
+  const { confirmModal, showConfirmModal, closeModal } = useConfirmationModal();
 
   // FILTRADO Y CONFIGURACIÓN DE INPUT SEARCH
   // Configurar el input de search para filtrar la columna especificada
@@ -167,19 +176,13 @@ export default function TableUI({
     return resultKeys;
   }, [selectedKeys, filteredItems, filterValue]);
 
-  const eyesRef = useRef<HTMLButtonElement | null>(null);
-  const editRef = useRef<HTMLButtonElement | null>(null);
-  const deleteRef = useRef<HTMLButtonElement | null>(null);
-  const { getButtonProps: getEyesProps } = useButton({ ref: eyesRef });
-  const { getButtonProps: getEditProps } = useButton({ ref: editRef });
-  const { getButtonProps: getDeleteProps } = useButton({ ref: deleteRef });
   const getColumnInfoProps = useMemoizedCallback((column: Column) => ({
     onClick: () => {
       handleColumnClick(column);
     },
   }));
 
-  const renderCell = useMemoizedCallback((user: any, columnKey: React.Key) => {
+  const renderCell = (user: any, columnKey: React.Key) => {
     const userKey = columnKey as string;
     const cellValue = user[userKey as any] as string;
     const column = columns.find((col) => col.uid === userKey);
@@ -245,9 +248,9 @@ export default function TableUI({
       case 'actions':
         return (
           <div className="flex items-center justify-end gap-2">
-            <EyeFilledIcon {...getEyesProps()} className="cursor-pointer text-default-400" height={18} width={18} />
-            <EditLinearIcon {...getEditProps()} className="cursor-pointer text-default-400" height={18} width={18} />
-            <DeleteFilledIcon {...getDeleteProps()} className="cursor-pointer text-default-400" height={18} width={18} />
+            <Icon icon="solar:eye-linear" className="cursor-pointer text-default-400" height={18} width={18} />
+            <Icon icon="solar:pen-linear" className="cursor-pointer text-default-400" height={18} width={18} />
+            <Icon icon="solar:trash-bin-trash-linear" className="cursor-pointer text-default-400" height={18} width={18} />
           </div>
         );
       case 'itinerary-actions':
@@ -257,7 +260,12 @@ export default function TableUI({
               size="sm"
               color={user.status === 'Activo' ? 'danger' : 'success'}
               variant="flat"
-              onPress={() => handleToggleStatus(user.id, user.status === 'Activo')}
+              onPress={() => {
+                if (toggleStatusConfig) {
+                  handleToggleStatus(user.id, user.status === 'Activo');
+                }
+              }}
+              isDisabled={!toggleStatusConfig}
               startContent={
                 user.status === 'Activo' ? (
                   <Icon icon="solar:eye-closed-linear" width={16} height={16} />
@@ -278,12 +286,26 @@ export default function TableUI({
             >
               Ver detalles
             </Button>
+            <Button
+              size="sm"
+              color="danger"
+              variant="flat"
+              onPress={() => {
+                if (deleteConfig) {
+                  handleDeleteItem(user.id, user.title || user.name || 'elemento');
+                }
+              }}
+              startContent={<DeleteFilledIcon height={16} width={16} />}
+              isDisabled={!deleteConfig}
+            >
+              Eliminar
+            </Button>
           </div>
         );
       default:
         return cellValue;
     }
-  });
+  };
 
   const onNextPage = useMemoizedCallback(() => {
     if (page < pages) {
@@ -348,27 +370,6 @@ export default function TableUI({
               value={filterValue}
               onValueChange={onSearchChange}
             />
-            <div>
-              <Popover placement="bottom">
-                <PopoverTrigger>
-                  <Button
-                    className="bg-default-100 text-default-800"
-                    size="sm"
-                    startContent={<Icon className="text-default-400" icon="solar:tuning-2-linear" width={16} />}
-                  >
-                    Filtros
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="flex w-full flex-col gap-6 px-2 py-4">
-                    <RadioGroup label="Worker Type" value={workerTypeFilter} onValueChange={setWorkerTypeFilter}>
-                      <Radio value="all">Todos</Radio>
-                      {/* TODO: AGREGAR LAS OPCIONES DINÁMICAMENTE */}
-                    </RadioGroup>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
             <div>
               <Dropdown>
                 <DropdownTrigger>
@@ -444,10 +445,6 @@ export default function TableUI({
     filterSelectedKeys,
     headerColumns,
     sortDescriptor,
-    workerTypeFilter,
-    startDateFilter,
-    setWorkerTypeFilter,
-    setStartDateFilter,
     onSearchChange,
     setVisibleColumns,
   ]);
@@ -547,35 +544,81 @@ export default function TableUI({
   );
 
   // Función para manejar el cambio de estado (activar/desactivar)
-  const handleToggleStatus = useCallback(
-    async (itineraryId: string, isCurrentlyActive: boolean) => {
+  const handleToggleStatus = useMemoizedCallback(
+    async (itemId: string, isCurrentlyActive: boolean) => {
+      if (!toggleStatusConfig) {
+        console.warn('toggleStatusConfig not provided');
+        return;
+      }
+
       try {
-        const supabase = createClient();
-        const newActiveStatus = !isCurrentlyActive;
-
-        // Actualizar en Supabase
-        const { error } = await supabase.from('itinerary').update({ active: newActiveStatus }).eq('id_itinerary', itineraryId);
-
-        if (error) {
-          console.error('Error al actualizar estado:', error);
-          toast.error('Error al actualizar el estado del itinerario');
-          return;
-        }
+        const newActiveStatus = await toggleStatusConfig.onToggle(itemId, isCurrentlyActive);
 
         // Actualizar datos localmente
-        const updatedData = data.map((item) => (item.id === itineraryId ? { ...item, status: newActiveStatus ? 'Activo' : 'Inactivo' } : item));
+        const updatedData = data.map((item) => (
+          item.id === itemId 
+            ? { ...item, status: newActiveStatus ? 'Activo' : 'Inactivo' } 
+            : item
+        ));
 
         if (onDataChange) {
           onDataChange(updatedData);
         }
 
-        toast.success(`Itinerario ${newActiveStatus ? 'activado' : 'desactivado'} correctamente`);
+        toast.success(`${toggleStatusConfig.entityName} ${newActiveStatus ? 'activado' : 'desactivado'} correctamente`);
       } catch (error) {
         console.error('Error al cambiar estado:', error);
-        toast.error('Error al actualizar el estado del itinerario');
+        toast.error(`Error al actualizar el estado del ${toggleStatusConfig.entityName.toLowerCase()}`);
       }
-    },
-    [data, onDataChange]
+    }
+  );
+
+  const handleDeleteItem = useMemoizedCallback(
+    async (itemId: string, itemTitle: string) => {
+      if (!deleteConfig) {
+        console.warn('deleteConfig not provided');
+        return;
+      }
+
+      console.log('🚀 handleDeleteItem started for:', itemId);
+      
+      try {
+        // Obtener información adicional si es necesario
+        let additionalInfo;
+        if (deleteConfig.getAdditionalInfo) {
+          additionalInfo = await deleteConfig.getAdditionalInfo(itemId);
+        }
+
+        // Obtener el mensaje personalizado
+        const { title, message } = deleteConfig.getDeleteMessage(
+          data.find(item => item.id === itemId),
+          additionalInfo
+        );
+
+        // Configurar el modal de confirmación
+        showConfirmModal(
+          title,
+          message,
+          async () => {
+            console.log('✅ User confirmed deletion - executing deletion');
+            
+            await deleteConfig.onDelete(itemId);
+            
+            // Actualizar datos localmente
+            const updatedData = data.filter((item) => item.id !== itemId);
+            
+            if (onDataChange) {
+              onDataChange(updatedData);
+            }
+            
+            toast.success(`${deleteConfig.entityName} eliminado correctamente`);
+          }
+        );
+      } catch (error) {
+        console.error(`Error al obtener información del ${deleteConfig.entityName}:`, error);
+        toast.error(`Error al obtener información del ${deleteConfig.entityName}`);
+      }
+    }
   );
 
   return (
@@ -639,6 +682,17 @@ export default function TableUI({
       <Modal isOpen={isAddModalOpen} onClose={closeAddModal} title="Crear Nuevo Itinerario" size="lg">
         <AddItineraryModal onItineraryAdded={handleItineraryAdded} onClose={closeAddModal} />
       </Modal>
+
+      {/* Modal de confirmación para eliminar */}
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={closeModal}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+        isLoading={confirmModal.isLoading}
+      />
     </>
   );
 }

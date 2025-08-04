@@ -22,14 +22,6 @@ export default function ItineraryEdit({ id, onUpdate, onClose }: ItineraryEditPr
   useEffect(() => {
     const fetchItinerary = async () => {
       try {
-        // const { data: { user } } = await supabase.auth.getUser();
-        
-        // if (!user) {
-        //   toast.error('Debes estar autenticado');
-        //   router.push('/login');
-        //   return;
-        // }
-
         const { data, error } = await supabase
           .from('itinerary')
           .select('*')

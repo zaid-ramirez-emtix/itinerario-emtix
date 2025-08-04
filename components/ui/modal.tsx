@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { XIcon } from '../icons';
 
@@ -13,6 +13,7 @@ interface ModalProps {
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
   closeOnEscape?: boolean;
+  isDismissable?: boolean;
 }
 
 const sizeClasses = {
@@ -23,7 +24,7 @@ const sizeClasses = {
   full: 'max-w-full mx-4',
 };
 
-export function Modal({
+export const Modal = memo(function Modal({
   isOpen,
   onClose,
   title,
@@ -32,6 +33,7 @@ export function Modal({
   showCloseButton = true,
   closeOnOverlayClick = true,
   closeOnEscape = true,
+  isDismissable = true,
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -40,8 +42,20 @@ export function Modal({
     return () => setMounted(false);
   }, []);
 
+  const handleClose = useCallback(() => {
+    if (isDismissable) {
+      onClose();
+    }
+  }, [isDismissable, onClose]);
+
+  const handleOverlayClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget && closeOnOverlayClick && isDismissable) {
+      onClose();
+    }
+  }, [closeOnOverlayClick, isDismissable, onClose]);
+
   useEffect(() => {
-    if (!closeOnEscape) return;
+    if (!closeOnEscape || !isDismissable) return;
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -58,13 +72,7 @@ export function Modal({
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose, closeOnEscape]);
-
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (closeOnOverlayClick && e.target === e.currentTarget) {
-      onClose();
-    }
-  };
+  }, [isOpen, onClose, closeOnEscape, isDismissable]);
 
   if (!mounted || !isOpen) return null;
 
@@ -85,8 +93,8 @@ export function Modal({
         {(title || showCloseButton) && (
           <div className="flex items-center justify-between p-6 border-b border-divider">
             {title && <h2 className="text-lg font-semibold text-foreground">{title}</h2>}
-            {showCloseButton && (
-              <button onClick={onClose} className="p-1 rounded-md hover:bg-default-100 transition-colors" aria-label="Cerrar modal">
+            {showCloseButton && isDismissable && (
+              <button onClick={handleClose} className="p-1 rounded-md hover:bg-default-100 transition-colors" aria-label="Cerrar modal">
                 <XIcon size={20} />
               </button>
             )}
@@ -100,7 +108,7 @@ export function Modal({
   );
 
   return createPortal(modalContent, document.body);
-}
+});
 
 // Hook para manejar el estado del modal
 export function useModal(initialState = false) {

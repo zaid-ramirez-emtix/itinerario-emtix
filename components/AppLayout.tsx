@@ -1,49 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import { useAuth } from '@/hooks/useAuth';
 import SidebarComponent from "./SidebarLayout";
+import { Spinner } from "@heroui/react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
   const pathname = usePathname();
-  const supabase = createClient();
 
   // Páginas donde NO se debe mostrar el sidebar
-  const pagesWithoutSidebar = ["/login", "/auth/confirm"];
+  const pagesWithoutSidebar = ["/login", "/signup", "/auth/confirm"];
   const shouldShowSidebar = user && !pagesWithoutSidebar.includes(pathname);
-
-  useEffect(() => {
-    // Obtener usuario actual
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      setLoading(false);
-    };
-
-    getUser();
-
-    // Escuchar cambios en la autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [supabase.auth]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center space-y-4">
+          <Spinner size="lg" color="primary" />
+          <p className="text-gray-600 dark:text-gray-300">Cargando...</p>
+        </div>
       </div>
     );
   }

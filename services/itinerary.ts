@@ -1,7 +1,8 @@
 'use client'
 
 import { createClient } from '@/utils/supabase/client'
-import { DayWithActivities, Day, Activity, DayInsert, ActivityInsert } from '@/types/itinerary'
+import { DayWithActivities, Activity, DayInsert, ActivityInsert } from '@/types/itinerary'
+import { deleteImage } from './images'
 
 const supabase = createClient()
 
@@ -62,9 +63,6 @@ export async function getDaysWithActivities(itineraryId: string): Promise<DayWit
   }
 }
 
-/**
- * Crea un nuevo día
- */
 /**
  * Crea un nuevo día y retorna los datos completos con información de la ciudad
  */
@@ -171,18 +169,30 @@ export async function updateDaysOrder(days: { id_day: string; order: number }[])
 }
 
 /**
- * Actualiza un día existente
- */
-/**
  * Actualiza un día y retorna los datos completos con información de la ciudad
  */
 export async function updateDay(dayId: string, dayData: Partial<Omit<DayInsert, 'id_day' | 'created_at' | 'order'>>): Promise<DayWithActivities> {
   try {
     console.log('Updating day with id:', dayId, 'data:', dayData)
+    
+    // Filtrar solo los campos válidos de la tabla day
+    const allowedFields = [
+      'id_itinerary', 'id_city', 'day_description', 'lodging_place', 
+      'image_path', 'active', 'updated_at'
+    ];
+    
+    const cleanDayData: any = {};
+    Object.keys(dayData).forEach(key => {
+      if (allowedFields.includes(key) && dayData[key as keyof typeof dayData] !== undefined) {
+        cleanDayData[key] = dayData[key as keyof typeof dayData];
+      }
+    });
+    
+    console.log('Clean day data being sent to DB:', cleanDayData);
 
     const { data, error } = await supabase
       .from('day')
-      .update(dayData)
+      .update(cleanDayData)
       .eq('id_day', dayId)
       .select(`
         *,
@@ -226,26 +236,6 @@ export async function updateDay(dayId: string, dayData: Partial<Omit<DayInsert, 
     return dayWithActivities
   } catch (error) {
     console.error('Error in updateDay:', error)
-    throw error
-  }
-}
-
-/**
- * Activa/desactiva un día
- */
-export async function toggleDayActive(dayId: string, active: boolean): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('day')
-      .update({ active })
-      .eq('id_day', dayId)
-
-    if (error) {
-      console.error('Error toggling day active:', error)
-      throw new Error('Error al cambiar el estado del día')
-    }
-  } catch (error) {
-    console.error('Error in toggleDayActive:', error)
     throw error
   }
 }
@@ -319,10 +309,25 @@ export async function createActivity(activityData: Omit<ActivityInsert, 'id_acti
 export async function updateActivity(activityId: string, activityData: Partial<Omit<ActivityInsert, 'id_activity' | 'created_at' | 'order'>>): Promise<Activity> {
   try {
     console.log('Updating activity with id:', activityId, 'data:', activityData)
+    
+    // Filtrar solo los campos válidos de la tabla activity
+    const allowedFields = [
+      'id_day', 'activity_type', 'transfer_time', 'activity_description', 
+      'activity_link', 'active', 'updated_at'
+    ];
+    
+    const cleanActivityData: any = {};
+    Object.keys(activityData).forEach(key => {
+      if (allowedFields.includes(key) && activityData[key as keyof typeof activityData] !== undefined) {
+        cleanActivityData[key] = activityData[key as keyof typeof activityData];
+      }
+    });
+    
+    console.log('Clean activity data being sent to DB:', cleanActivityData);
 
     const { data, error } = await supabase
       .from('activity')
-      .update(activityData)
+      .update(cleanActivityData)
       .eq('id_activity', activityId)
       .select()
       .single()
@@ -371,58 +376,57 @@ export async function updateActivitiesOrder(activities: { id_activity: string; o
   }
 }
 
-/**
- * Activa/desactiva una actividad
- */
-export async function toggleActivityActive(activityId: string, active: boolean): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('activity')
-      .update({ active })
-      .eq('id_activity', activityId)
 
-    if (error) {
-      console.error('Error toggling activity active:', error)
-      throw new Error('Error al cambiar el estado de la actividad')
-    }
-  } catch (error) {
-    console.error('Error in toggleActivityActive:', error)
-    throw error
-  }
-}
-
-// ============================================================================
-// OPERACIONES DE CIUDADES
-// ============================================================================
 
 /**
  * Elimina un día y todas sus actividades
  */
 export async function deleteDay(dayId: string): Promise<void> {
   try {
-    // Primero eliminar todas las actividades del día
+    // Primero obtener la información del día para acceder a la imagen
+    const { data: dayData, error: dayFetchError } = await supabase
+      .from('day')
+      .select('image_path')
+      .eq('id_day', dayId)
+      .single()
+
+    if (dayFetchError && dayFetchError.code !== 'PGRST116') {
+      throw new Error('Error al obtener información del día')
+    }
+
+    // Eliminar la imagen del bucket si existe
+    if (dayData?.image_path) {
+      try {
+        await deleteImage(dayData.image_path)
+      } catch (imageError) {
+        // No lanzar error aquí para permitir que continúe la eliminación del día
+      }
+    }
+
+    // Eliminar todas las actividades del día
     const { error: activitiesError } = await supabase
       .from('activity')
       .delete()
       .eq('id_day', dayId)
 
     if (activitiesError) {
-      console.error('Error deleting activities:', activitiesError)
       throw new Error('Error al eliminar las actividades del día')
     }
 
-    // Luego eliminar el día
+    if (activitiesError) {
+      throw new Error('Error al eliminar las actividades del día')
+    }
+
+    // Finalmente eliminar el día
     const { error: dayError } = await supabase
       .from('day')
       .delete()
       .eq('id_day', dayId)
 
     if (dayError) {
-      console.error('Error deleting day:', dayError)
       throw new Error('Error al eliminar el día')
     }
   } catch (error) {
-    console.error('Error in deleteDay:', error)
     throw error
   }
 }
@@ -432,20 +436,23 @@ export async function deleteDay(dayId: string): Promise<void> {
  */
 export async function deleteActivity(activityId: string): Promise<void> {
   try {
+    // Eliminar la actividad
     const { error } = await supabase
       .from('activity')
       .delete()
       .eq('id_activity', activityId)
 
     if (error) {
-      console.error('Error deleting activity:', error)
       throw new Error('Error al eliminar la actividad')
     }
   } catch (error) {
-    console.error('Error in deleteActivity:', error)
     throw error
   }
 }
+
+// ============================================================================
+// OPERACIONES DE CIUDADES
+// ============================================================================
 
 /**
  * Obtiene todas las ciudades disponibles
@@ -465,6 +472,95 @@ export async function getCities() {
     return cities || []
   } catch (error) {
     console.error('Error in getCities:', error)
+    throw error
+  }
+}
+
+// ============================================================================
+// OPERACIONES DE ITINERARIOS
+// ============================================================================
+
+/**
+ * Elimina un itinerario completo con todos sus días, actividades e imágenes asociadas
+ */
+export async function deleteItinerary(itineraryId: string): Promise<void> {
+  try {
+    // 1. Obtener la información del itinerario para acceder a su imagen
+    const { data: itineraryData, error: itineraryFetchError } = await supabase
+      .from('itinerary')
+      .select('path_itinerary_image')
+      .eq('id_itinerary', itineraryId)
+      .single()
+
+    if (itineraryFetchError && itineraryFetchError.code !== 'PGRST116') {
+      throw new Error('Error al obtener información del itinerario')
+    }
+
+    // 2. Obtener todos los días del itinerario con sus imágenes
+    const { data: days, error: daysError } = await supabase
+      .from('day')
+      .select('id_day, image_path')
+      .eq('id_itinerary', itineraryId)
+
+    if (daysError) {
+      throw new Error('Error al obtener los días del itinerario')
+    }
+
+    // 3. Eliminar imágenes de todos los días
+    if (days && days.length > 0) {
+      for (const day of days) {
+        if (day.image_path) {
+          try {
+            await deleteImage(day.image_path)
+          } catch (imageError) {
+            // Continuar con las demás imágenes aunque una falle
+          }
+        }
+      }
+    }
+
+    // 4. Eliminar todas las actividades de todos los días
+    if (days && days.length > 0) {
+      const dayIds = days.map(day => day.id_day)
+      const { error: activitiesError } = await supabase
+        .from('activity')
+        .delete()
+        .in('id_day', dayIds)
+
+      if (activitiesError) {
+        throw new Error('Error al eliminar las actividades del itinerario')
+      }
+    }
+
+    // 5. Eliminar todos los días del itinerario
+    const { error: daysDeleteError } = await supabase
+      .from('day')
+      .delete()
+      .eq('id_itinerary', itineraryId)
+
+    if (daysDeleteError) {
+      throw new Error('Error al eliminar los días del itinerario')
+    }
+
+    // 6. Eliminar la imagen del itinerario si existe
+    if (itineraryData?.path_itinerary_image) {
+      try {
+        await deleteImage(itineraryData.path_itinerary_image)
+      } catch (imageError) {
+        // No lanzar error aquí para permitir que continúe la eliminación del itinerario
+      }
+    }
+
+    // 7. Finalmente eliminar el itinerario
+    const { error: itineraryError } = await supabase
+      .from('itinerary')
+      .delete()
+      .eq('id_itinerary', itineraryId)
+
+    if (itineraryError) {
+      throw new Error('Error al eliminar el itinerario')
+    }
+  } catch (error) {
     throw error
   }
 }

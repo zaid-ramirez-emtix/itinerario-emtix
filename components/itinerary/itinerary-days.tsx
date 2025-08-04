@@ -1,5 +1,3 @@
-'use client'
-
 import { useState, useEffect } from 'react'
 import { Card, CardBody, CardHeader, Chip, Button, Image, Spinner } from '@heroui/react'
 import { IconGripVertical, IconClock, IconMapPin, IconExternalLink, IconPlus, IconEyeOff, IconEye, IconEdit, IconPhoto, IconTrash } from '@tabler/icons-react'
@@ -14,23 +12,17 @@ import { EditDayModal } from './edit-day-modal'
 import { AddActivityModal } from './add-activity-modal'
 import { EditActivityModal } from './edit-activity-modal'
 import { Modal, useModal } from "@/components/ui/modal"
-import { useConfirmModal } from "@/components/ui/confirm-modal"
-import { toast } from 'sonner'
-import {
-  getDaysWithActivities,
-  updateDaysOrder,
-  updateActivitiesOrder,
-  toggleDayActive,
-  toggleActivityActive,
-  deleteDay,
-  deleteActivity
-} from '@/services/itinerary'
+import ConfirmModal from "@/components/ui/confirm-modal"
+import { useDayOperations } from '@/hooks/useDayOperations'
+import { useActivityOperations } from '@/hooks/useActivityOperations'
+import { useDeleteConfirmations } from '@/hooks/useDeleteConfirmations'
+import { useConfirmationModal } from '@/hooks/useConfirmationModal'
 
 interface SortableActivityProps {
   activity: Activity
   dayNumber: number
   onEditActivity: (activity: Activity) => void
-  onToggleActivity: (activityId: string, isActive: boolean) => void
+  onToggleActivity: (activity: Activity, completed: boolean) => void
   onDeleteActivity: (activityId: string) => void
 }
 
@@ -147,7 +139,7 @@ function SortableActivity({ activity, dayNumber, onEditActivity, onToggleActivit
                   isIconOnly
                   variant="light"
                   color={activity.active ? "warning" : "success"}
-                  onPress={() => onToggleActivity(activity.id_activity, !activity.active)}
+                  onPress={() => onToggleActivity(activity, !activity.active)}
                   title={activity.active ? "Desactivar actividad" : "Activar actividad"}
                 >
                   {activity.active ? <IconEyeOff size={14} /> : <IconEye size={14} />}
@@ -404,7 +396,7 @@ function SortableDay({ day, dayNumber, onUpdateActivities, onAddActivity, onEdit
                           activity={activity}
                           dayNumber={dayNumber}
                           onEditActivity={onEditActivity}
-                          onToggleActivity={(activityId, isActive) => onToggleActivity(day.id_day, activityId, isActive)}
+                          onToggleActivity={(activity, isActive) => onToggleActivity(day.id_day, activity.id_activity, isActive)}
                           onDeleteActivity={(activityId) => onDeleteActivity(day.id_day, activityId)}
                         />
                       ))}
@@ -438,10 +430,41 @@ interface ItineraryDaysProps {
 }
 
 export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
-  const [days, setDays] = useState<DayWithActivities[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
+  
+  // Custom hooks
+  const {
+    days,
+    setDays,
+    isLoading,
+    error,
+    loadDays,
+    updateDaysOrderOperation,
+    toggleDayActiveOperation,
+    deleteDayOperation,
+    addDayOperation,
+    updateDayOperation
+  } = useDayOperations(itineraryId)
+
+  const {
+    updateActivitiesOrderOperation,
+    toggleActivityActiveOperation,
+    deleteActivityOperation,
+    addActivityOperation,
+    updateActivityOperation
+  } = useActivityOperations()
+
+  // Hook para modal de confirmación
+  const { confirmModal, showConfirmModal, closeModal } = useConfirmationModal();
+
+  const { confirmDeleteDay, confirmDeleteActivity } = useDeleteConfirmations(
+    // showConfirmModal compatible - no necesitamos closeModal ya que el nuevo hook lo maneja automáticamente
+    (title: string, message: string, onConfirm: () => void) => {
+      showConfirmModal(title, message, async () => {
+        await onConfirm();
+      });
+    }
+  );
   
   // Modales
   const { isOpen: isAddDayOpen, openModal: openAddDay, closeModal: closeAddDay } = useModal()
@@ -452,31 +475,12 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
   const [selectedDayToEdit, setSelectedDayToEdit] = useState<Day | null>(null)
   const [selectedActivityToEdit, setSelectedActivityToEdit] = useState<Activity | null>(null)
 
-  // Hook para modal de confirmación
-  const { showConfirmModal, ConfirmModal } = useConfirmModal()
-
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
-
-  // Función para cargar días desde Supabase
-  const loadDays = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      const daysData = await getDaysWithActivities(itineraryId)
-      setDays(daysData)
-    } catch (err) {
-      console.error('Error loading days:', err)
-      setError('Error al cargar los días del itinerario')
-      toast.error('Error al cargar los días del itinerario')
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   // Cargar días del itinerario desde Supabase
   useEffect(() => {
@@ -487,14 +491,11 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)
-    // Agregar clase al body para cambiar cursor globalmente
     document.body.classList.add('dnd-active')
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
-
-    // Remover clase del body
     document.body.classList.remove('dnd-active')
 
     if (active.id !== over?.id) {
@@ -506,53 +507,15 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
         order: index + 1
       }))
       
-      // Actualizar estado local inmediatamente
-      setDays(newDays)
-      
-      // Actualizar en Supabase
-      try {
-        const orderUpdates = newDays.map(day => ({
-          id_day: day.id_day,
-          order: day.order
-        }))
-        await updateDaysOrder(orderUpdates)
-        toast.success('Orden de días actualizado')
-      } catch (error) {
-        console.error('Error updating days order:', error)
-        toast.error('Error al actualizar el orden de los días')
-        // Revertir cambios en caso de error
-        const daysData = await getDaysWithActivities(itineraryId)
-        setDays(daysData)
-      }
+      await updateDaysOrderOperation(newDays)
     }
     
     setActiveId(null)
   }
 
-  const handleUpdateActivities = async (dayId: string, newActivities: Activity[]) => {
-    // Actualizar estado local inmediatamente
-    setDays(prevDays => 
-      prevDays.map(day => 
-        day.id_day === dayId 
-          ? { ...day, activities: newActivities }
-          : day
-      )
-    )
-    
-    // Actualizar orden en Supabase
-    try {
-      const orderUpdates = newActivities.map(activity => ({
-        id_activity: activity.id_activity,
-        order: activity.order
-      }))
-      await updateActivitiesOrder(orderUpdates)
-    } catch (error) {
-      console.error('Error updating activities order:', error)
-      toast.error('Error al actualizar el orden de las actividades')
-      // Recargar datos en caso de error
-      const daysData = await getDaysWithActivities(itineraryId)
-      setDays(daysData)
-    }
+  // Handlers simplificados
+  const handleUpdateActivities = (dayId: string, newActivities: Activity[]) => {
+    updateActivitiesOrderOperation(dayId, newActivities, days, setDays)
   }
 
   const handleAddActivity = (dayId: string) => {
@@ -561,31 +524,13 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
   }
 
   const handleActivityAdded = (dayId: string, newActivity: Activity) => {
-    setDays(prevDays => 
-      prevDays.map(day => 
-        day.id_day === dayId 
-          ? { 
-              ...day, 
-              activities: [...day.activities, newActivity]
-            }
-          : day
-      )
-    )
+    addActivityOperation(dayId, newActivity, days, setDays)
     closeAddActivity()
   }
 
-  const handleDayAdded = async (newDay: DayWithActivities) => {
-    try {
-      // Ya tenemos el DayWithActivities completo con información de ciudad
-      setDays(prevDays => [...prevDays, newDay])
-      closeAddDay()
-      
-      // Ya no necesitamos recargar datos porque tenemos la información completa
-    } catch (error) {
-      console.error('Error handling day added:', error)
-      // En caso de error, recargar todos los datos
-      await loadDays()
-    }
+  const handleDayAdded = (newDay: DayWithActivities) => {
+    addDayOperation(newDay)
+    closeAddDay()
   }
 
   const handleEditDay = (day: Day) => {
@@ -593,25 +538,10 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
     openEditDay()
   }
 
-  const handleDayUpdated = async (updatedDay: DayWithActivities) => {
-    try {
-      // Actualizar solo el día específico en el estado local con los datos completos
-      setDays(prevDays => 
-        prevDays.map(day => 
-          day.id_day === updatedDay.id_day 
-            ? updatedDay
-            : day
-        )
-      )
-      closeEditDay()
-      setSelectedDayToEdit(null)
-      
-      // Ya no necesitamos recargar todos los datos porque tenemos la información completa
-    } catch (error) {
-      console.error('Error handling day updated:', error)
-      // En caso de error, recargar todos los datos
-      await loadDays()
-    }
+  const handleDayUpdated = (updatedDay: DayWithActivities) => {
+    updateDayOperation(updatedDay)
+    closeEditDay()
+    setSelectedDayToEdit(null)
   }
 
   const handleEditActivity = (activity: Activity) => {
@@ -619,143 +549,38 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
     openEditActivity()
   }
 
-  const handleActivityUpdated = async (updatedActivity: Activity) => {
-    try {
-      // Actualizar la actividad en el estado local
-      setDays(prevDays => 
-        prevDays.map(day => 
-          day.id_day === updatedActivity.id_day
-            ? {
-                ...day,
-                activities: day.activities.map(activity =>
-                  activity.id_activity === updatedActivity.id_activity
-                    ? updatedActivity
-                    : activity
-                )
-              }
-            : day
-        )
-      )
-      closeEditActivity()
-      setSelectedActivityToEdit(null)
-      
-      // Opcional: recargar datos para asegurar sincronización
-      // await loadDays()
-    } catch (error) {
-      console.error('Error handling activity updated:', error)
-      // En caso de error, recargar todos los datos
-      await loadDays()
-    }
+  const handleActivityUpdated = (updatedActivity: Activity) => {
+    updateActivityOperation(updatedActivity, days, setDays)
+    closeEditActivity()
+    setSelectedActivityToEdit(null)
   }
 
-  const handleToggleDay = async (dayId: string, isActive: boolean) => {
-    // Actualizar estado local inmediatamente
-    setDays(prevDays => 
-      prevDays.map(day => 
-        day.id_day === dayId 
-          ? { ...day, active: isActive }
-          : day
-      )
-    )
-    
-    try {
-      await toggleDayActive(dayId, isActive)
-      toast.success(isActive ? 'Día activado correctamente' : 'Día desactivado correctamente')
-    } catch (error) {
-      console.error('Error toggling day:', error)
-      toast.error('Error al cambiar el estado del día')
-      // Revertir cambios en caso de error
-      const daysData = await getDaysWithActivities(itineraryId)
-      setDays(daysData)
-    }
+  const handleToggleDay = (dayId: string, isActive: boolean) => {
+    toggleDayActiveOperation(dayId, isActive)
   }
 
-  const handleToggleActivity = async (dayId: string, activityId: string, isActive: boolean) => {
-    // Actualizar estado local inmediatamente
-    setDays(prevDays => 
-      prevDays.map(day => 
-        day.id_day === dayId 
-          ? { 
-              ...day, 
-              activities: day.activities.map(activity =>
-                activity.id_activity === activityId
-                  ? { ...activity, active: isActive }
-                  : activity
-              )
-            }
-          : day
-      )
-    )
-    
-    try {
-      await toggleActivityActive(activityId, isActive)
-      toast.success(isActive ? 'Actividad activada correctamente' : 'Actividad desactivada correctamente')
-    } catch (error) {
-      console.error('Error toggling activity:', error)
-      toast.error('Error al cambiar el estado de la actividad')
-      // Revertir cambios en caso de error
-      const daysData = await getDaysWithActivities(itineraryId)
-      setDays(daysData)
-    }
+  const handleToggleActivity = (dayId: string, activityId: string, isActive: boolean) => {
+    toggleActivityActiveOperation(dayId, activityId, isActive, days, setDays)
   }
 
-  const handleDeleteDay = async (dayId: string) => {
+  const handleDeleteDay = (dayId: string) => {
     const dayToDelete = days.find(day => day.id_day === dayId)
     if (!dayToDelete) return
 
-    const activityCount = dayToDelete.activities.length
-
-    showConfirmModal(
-      'Eliminar día',
-      `¿Estás seguro de que quieres eliminar este día permanentemente? ${
-        activityCount > 0 
-          ? `También se eliminarán ${activityCount} ${activityCount === 1 ? 'actividad' : 'actividades'}.` 
-          : ''
-      } Esta acción no se puede deshacer.`,
-      async () => {
-        try {
-          await deleteDay(dayId)
-          setDays(prevDays => prevDays.filter(day => day.id_day !== dayId))
-          toast.success('Día eliminado correctamente')
-        } catch (error) {
-          console.error('Error deleting day:', error)
-          toast.error('Error al eliminar el día')
-        }
-      },
-      'danger'
-    )
+    confirmDeleteDay(dayToDelete, async () => {
+      await deleteDayOperation(dayId)
+    })
   }
 
-  const handleDeleteActivity = async (dayId: string, activityId: string) => {
+  const handleDeleteActivity = (dayId: string, activityId: string) => {
     const day = days.find(d => d.id_day === dayId)
     const activity = day?.activities.find(a => a.id_activity === activityId)
     
     if (!activity) return
 
-    showConfirmModal(
-      'Eliminar actividad',
-      `¿Estás seguro de que quieres eliminar la actividad "${activity.activity_description}" permanentemente? Esta acción no se puede deshacer.`,
-      async () => {
-        try {
-          await deleteActivity(activityId)
-          setDays(prevDays => 
-            prevDays.map(day => 
-              day.id_day === dayId 
-                ? { 
-                    ...day, 
-                    activities: day.activities.filter(activity => activity.id_activity !== activityId)
-                  }
-                : day
-            )
-          )
-          toast.success('Actividad eliminada correctamente')
-        } catch (error) {
-          console.error('Error deleting activity:', error)
-          toast.error('Error al eliminar la actividad')
-        }
-      },
-      'danger'
-    )
+    confirmDeleteActivity(activity, async () => {
+      await deleteActivityOperation(dayId, activityId, days, setDays)
+    })
   }
 
   // Estados de carga y error
@@ -947,7 +772,15 @@ export function ItineraryDays({ itineraryId }: ItineraryDaysProps) {
       </Modal>
 
       {/* Modal de confirmación */}
-      <ConfirmModal />
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={closeModal}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+        isLoading={confirmModal.isLoading}
+      />
     </div>
   )
 }

@@ -2,12 +2,13 @@
 "use client";
 
 import React from "react";
-import { Avatar, Button, ScrollShadow } from "@heroui/react";
+import { ThemeSwitch } from "./theme-switch";
+import { Button, ScrollShadow } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 
-import LogoSVG from "@/assets/logo_golden.svg";
+import LogoSVG from "@/public/logo_golden.svg";
 import Image from "next/image";
 
 import { sectionNestedItems } from "./sidebar-items";
@@ -30,7 +31,7 @@ export default function SidebarComponent() {
           <div className="h-8 w-8">
             <Image src={LogoSVG} alt="Logo" width={30} height={40} className="object-contain" />
           </div>
-          <span className="text-small font-bold uppercase">Acme</span>
+          <span className="text-small font-bold uppercase">Golden Maya</span>
         </div>
 
         {/* Navigation */}
@@ -43,16 +44,7 @@ export default function SidebarComponent() {
         {/* Footer */}
         <div className="border-t border-divider p-4">
           <div className="flex flex-col gap-2">
-            <Button
-              fullWidth
-              className="justify-start text-default-500 data-[hover=true]:text-foreground"
-              startContent={
-                <Icon className="text-default-500" icon="solar:info-circle-line-duotone" width={24} />
-              }
-              variant="light"
-            >
-              Help & Information
-            </Button>
+            <ThemeSwitch />
             <Button
               fullWidth
               onClick={handleLogout}

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { redirect } from 'next/navigation';
 import TableUI from '@/components/tableUI/TableUI';
 
 import { Column } from '@/components/tableUI/types';
@@ -17,18 +16,6 @@ export default function App() {
   useEffect(() => {
     async function fetchData() {
       const supabase = createClient();
-
-      // Verificar autenticación
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (authUser === null) {
-        redirect('/login');
-        return;
-      }
-
-      setUser(authUser);
 
       const { data: cities, error } = await supabase.from('city').select('*');
 

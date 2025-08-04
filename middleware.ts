@@ -35,17 +35,26 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // if (
-  //   !user &&
-  //   !request.nextUrl.pathname.startsWith('/login') &&
-  //   !request.nextUrl.pathname.startsWith('/signup') &&
-  //   !request.nextUrl.pathname.startsWith('/auth')
-  // ) {
-  //   // no user, potentially respond by redirecting the user to the login page
-  //   const url = request.nextUrl.clone()
-  //   url.pathname = '/login'
-  //   return NextResponse.redirect(url)
-  // }
+  // Páginas públicas que no requieren autenticación
+  const publicPages = ['/login', '/signup', '/auth']
+  const isPublicPage = publicPages.some(page => 
+    request.nextUrl.pathname.startsWith(page)
+  )
+
+  // Redirigir a login si no hay usuario y no es página pública
+  if (!user && !isPublicPage) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // Redirigir a home si hay usuario y está en login/signup
+  if (user && (request.nextUrl.pathname.startsWith('/login') || 
+                request.nextUrl.pathname.startsWith('/signup'))) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
+  }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
   // creating a new response object with NextResponse.next() make sure to:
