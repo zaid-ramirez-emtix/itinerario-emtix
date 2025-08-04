@@ -101,64 +101,51 @@ export default function App() {
     [data]
   );
 
-  const handleDeleteItem = useMemoizedCallback(
-    async (itemId: string, itemTitle: string) => {
-      if (!itineraryDeleteConfig) {
-        console.warn('deleteConfig not provided');
-        return;
+  const handleDeleteItem = useMemoizedCallback(async (itemId: string, itemTitle: string) => {
+    if (!itineraryDeleteConfig) {
+      console.warn('deleteConfig not provided');
+      return;
+    }
+
+    console.log('🚀 handleDeleteItem started for:', itemId);
+
+    try {
+      // Obtener información adicional si es necesario
+      let additionalInfo;
+      if (itineraryDeleteConfig.getAdditionalInfo) {
+        additionalInfo = await itineraryDeleteConfig.getAdditionalInfo(itemId);
       }
 
-      console.log('🚀 handleDeleteItem started for:', itemId);
+      // Obtener el mensaje personalizado
+      const { title, message } = itineraryDeleteConfig.getDeleteMessage(
+        data.find((item) => item.id === itemId),
+        additionalInfo
+      );
 
-      try {
-        // Obtener información adicional si es necesario
-        let additionalInfo;
-        if (itineraryDeleteConfig.getAdditionalInfo) {
-          additionalInfo = await itineraryDeleteConfig.getAdditionalInfo(itemId);
+      // Configurar el modal de confirmación
+      showConfirmModal(title, message, async () => {
+        console.log('✅ User confirmed deletion - executing deletion');
+
+        await itineraryDeleteConfig.onDelete(itemId);
+
+        // Actualizar datos localmente
+        const updatedData = data.filter((item) => item.id !== itemId);
+
+        if (handleDataChange) {
+          handleDataChange(updatedData);
         }
 
-        // Obtener el mensaje personalizado
-        const { title, message } = itineraryDeleteConfig.getDeleteMessage(
-          data.find((item) => item.id === itemId),
-          additionalInfo
-        );
-
-        // Configurar el modal de confirmación
-        showConfirmModal(title, message, async () => {
-          console.log('✅ User confirmed deletion - executing deletion');
-
-          await itineraryDeleteConfig.onDelete(itemId);
-
-          // Actualizar datos localmente
-          const updatedData = data.filter((item) => item.id !== itemId);
-
-          if (handleDataChange) {
-            handleDataChange(updatedData);
-          }
-
-          toast.success(`${itineraryDeleteConfig.entityName} eliminado correctamente`);
-        });
-      } catch (error) {
-        console.error(`Error al obtener información del ${itineraryDeleteConfig.entityName}:`, error);
-        toast.error(`Error al obtener información del ${itineraryDeleteConfig.entityName}`);
-      }
+        toast.success(`${itineraryDeleteConfig.entityName} eliminado correctamente`);
+      });
+    } catch (error) {
+      console.error(`Error al obtener información del ${itineraryDeleteConfig.entityName}:`, error);
+      toast.error(`Error al obtener información del ${itineraryDeleteConfig.entityName}`);
     }
-  );
+  });
 
-  useEffect(()=> {
+  useEffect(() => {
     console.log('confirmModal', confirmModal);
-  }, [confirmModal])
-
-  {/* Modal de confirmación para eliminar */}
-      <ConfirmModal 
-        isOpen={confirmModal.isOpen}
-        onClose={closeModal}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        variant="danger"
-        isLoading={confirmModal.isLoading}
-      />
+  }, [confirmModal]);
 
   // Crear las columnas de las tablas
   const columns: Column[] = [
@@ -308,6 +295,17 @@ export default function App() {
       <Modal isOpen={isAddModalOpen} onClose={closeAddModal} title="Crear Nuevo Itinerario" size="lg">
         <AddItineraryModal onItineraryAdded={handleItineraryAdded} onClose={closeAddModal} />
       </Modal>
+
+      {/* Modal de confirmación para eliminar */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeModal}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+        isLoading={confirmModal.isLoading}
+      />
     </main>
   );
 }
