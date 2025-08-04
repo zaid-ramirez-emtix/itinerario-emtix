@@ -29,6 +29,7 @@ const ConfirmModal = React.memo(function ConfirmModal({
 }: ConfirmModalProps) {
 
   const handleConfirm = React.useCallback(async () => {
+    console.log('Entra al handle');
     await onConfirm();
     // No cerramos el modal aquí - la función onConfirm debe manejarlo
   }, [onConfirm]);
