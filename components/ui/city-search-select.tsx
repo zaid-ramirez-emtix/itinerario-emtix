@@ -80,15 +80,19 @@ export function CitySearchSelect({
 
   return (
     <div ref={containerRef} className='relative w-full'>
+      {/* Label externo */}
+      <label className="block text-sm font-medium text-foreground mb-2">
+        {label}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      
       {/* Input principal */}
       <Input
         ref={inputRef}
-        label={label}
         placeholder={placeholder}
         value={isOpen ? searchTerm : displayValue}
         onValueChange={handleInputChange}
         onFocus={handleInputFocus}
-        isRequired={isRequired}
         isDisabled={isDisabled}
         variant="bordered"
         size='md'

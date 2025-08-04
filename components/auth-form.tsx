@@ -1,7 +1,7 @@
 //components\auth-form.tsx
 'use client'
 import Image from "next/image";
-import LogoSVG from "@/assets/logo_golden.svg";
+import LogoSVG from "@/public/logo_golden.svg";
 import React, { useState } from 'react'
 import { Form, Input, Button, Checkbox, Link } from "@heroui/react";
 import { Icon } from "@iconify/react";
