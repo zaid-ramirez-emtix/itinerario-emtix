@@ -63,6 +63,7 @@ export type Database = {
       }
       city: {
         Row: {
+          active: boolean
           city_image_path: string | null
           city_name: string
           created_at: string
@@ -70,6 +71,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active?: boolean
           city_image_path?: string | null
           city_name: string
           created_at?: string
@@ -77,6 +79,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active?: boolean
           city_image_path?: string | null
           city_name?: string
           created_at?: string

@@ -82,7 +82,6 @@ export function ItineraryDetails({id}: {id: string}) {
 
   const handleItineraryUpdate = (updatedItinerary: Itinerary) => {
     setItinerary(updatedItinerary)
-    toast.success('Itinerario actualizado correctamente')
   }
 
   const handleGeneratePDF = async () => {

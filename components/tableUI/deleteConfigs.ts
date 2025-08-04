@@ -75,3 +75,6 @@ export const createSimpleDeleteConfig = (entityName: string, deleteFunction: (id
   }),
   onDelete: deleteFunction
 });
+
+// Configuración para toggle de estado de ciudades
+export const citiesToggleStatusConfig = true;

@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from '@/hooks/useAuth';
 import SidebarComponent from "./SidebarLayout";
-import { Spinner } from "@heroui/react";
+import { Spinner, Button } from "@heroui/react";
+import { Icon } from "@iconify/react";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -12,10 +14,15 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   const { user, loading } = useAuth();
   const pathname = usePathname();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Páginas donde NO se debe mostrar el sidebar
   const pagesWithoutSidebar = ["/login", "/signup", "/auth/confirm"];
   const shouldShowSidebar = user && !pagesWithoutSidebar.includes(pathname);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
 
   if (loading) {
     return (
@@ -31,12 +38,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
   if (shouldShowSidebar) {
     return (
       <div className="flex min-h-screen">
-        {/* Sidebar fijo a la izquierda */}
-        <aside className="w-72 h-screen sticky top-0 flex-shrink-0 border-r border-default-200">
-          <SidebarComponent />
+        {/* Sidebar colapsable */}
+        <aside className={`h-screen sticky top-0 flex-shrink-0 border-r border-default-200 transition-all duration-300 ${
+          sidebarCollapsed ? 'w-16' : 'w-72'
+        }`}>
+          <SidebarComponent 
+            isCollapsed={sidebarCollapsed} 
+            onToggleCollapse={toggleSidebar}
+          />
         </aside>
 
-        {/* Contenido principal a la derecha */}
+        {/* Contenido principal */}
         <main className="flex-1 overflow-y-auto">
           {children}
         </main>

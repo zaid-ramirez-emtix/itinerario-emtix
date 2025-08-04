@@ -388,114 +388,34 @@ export const sectionLongList: SidebarItem[] = [
 ];
 
 export const sectionNestedItems: SidebarItem[] = [
-  // Flights Module (replacing Home)
+  // Módulo de Inicio/Dashboard
   {
-    key: "flights",
-    title: "Flights",
-    icon: "solar:plain-2-outline",
-    type: SidebarItemType.Nest,
-    items: [
-      {
-        key: "flights_quotations",
-        icon: "solar:document-text-outline",
-        href: "#",
-        title: "Quotations",
-      },
-    ],
+    key: "dashboard",
+    title: "Panel Principal",
+    icon: "solar:home-2-outline",
+    href: "/",
   },
-  // Accommodation Module
-  {
-    key: "accommodation",
-    title: "Accommodation",
-    icon: "solar:home-smile-outline",
-    type: SidebarItemType.Nest,
-    items: [
-      {
-        key: "accommodation_quotations",
-        icon: "solar:document-text-outline",
-        href: "#",
-        title: "Quotations",
-      },
-    ],
-  },
-  // Contact Module
-  {
-    key: "contact",
-    title: "Contact",
-    icon: "solar:phone-outline",
-    type: SidebarItemType.Nest,
-    items: [
-      {
-        key: "companies",
-        icon: "solar:buildings-2-outline",
-        href: "#",
-        title: "Companies",
-      },
-      {
-        key: "comercial_representatives",
-        icon: "solar:user-id-outline",
-        href: "#",
-        title: "Commercial Representatives",
-      },
-    ],
-  },
-  // Register Module
-  {
-    key: "register",
-    title: "Register",
-    icon: "solar:folder-outline",
-    type: SidebarItemType.Nest,
-    items: [
-      {
-        key: "airlines",
-        icon: "solar:ticket-line-duotone",
-        href: "#",
-        title: "Airlines",
-      },
-      {
-        key: "airplanes",
-        icon: "solar:widget-2-outline",
-        href: "#",
-        title: "Airplanes",
-      },
-      {
-        key: "airports",
-        icon: "solar:map-point-outline",
-        href: "#",
-        title: "Airports",
-      },
-      {
-        key: "countries",
-        icon: "solar:global-outline",
-        href: "#",
-        title: "Countries",
-      },
-      {
-        key: "hotels",
-        icon: "solar:home-smile-outline",
-        href: "#",
-        title: "Hotels",
-      },
-      {
-        key: "room",
-        icon: "solar:bed-outline",
-        href: "#",
-        title: "Room",
-      },
-    ],
-  },
-  // Itinerary Module
+  
+  // Módulo de Itinerarios
   {
     key: "itinerary",
-    title: "Itinerary",
+    title: "Itinerarios",
     icon: "solar:route-outline",
+    href: "/itinerary",
+  },
+
+  // Sección de Catálogos
+  {
+    key: "catalogs",
+    title: "Catálogos",
+    icon: "solar:folder-with-files-outline",
     type: SidebarItemType.Nest,
     items: [
       {
-        key: "itinerarys",
-        icon: "solar:map-outline",
-        href: "#",
-        title: "Itinerarys",
+        key: "cities",
+        icon: "solar:city-outline",
+        href: "/cities",
+        title: "Ciudades",
       },
     ],
   },
