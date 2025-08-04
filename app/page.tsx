@@ -4,16 +4,21 @@ import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { redirect } from 'next/navigation';
 import TableUI from '@/components/tableUI/TableUI';
-
+import { itineraryDeleteConfig, itineraryToggleStatusConfig } from '@/components/tableUI/deleteConfigs';
 import { Column, AddButton } from '@/components/tableUI/types';
+import { Spinner } from '@heroui/react';
 import { StatusOptions } from '@/components/tableUI/mockData';
 import { Modal, useModal } from '@/components/ui/modal';
+import ConfirmModal from '@/components/ui/confirm-modal';
+import { useConfirmationModal } from '@/hooks/useConfirmationModal';
 import { AddItineraryModal } from '@/components/itinerary/add-itinerary-modal';
 import { Button } from '@heroui/react';
 import Link from 'next/link';
 import { Icon } from '@iconify/react';
 import { EyeFilledIcon } from '@/components/tableUI/eye';
 import { toast } from 'sonner';
+import { DeleteFilledIcon } from '@/components/tableUI/delete';
+import { useMemoizedCallback } from '@/hooks/useMemoizedCallback';
 
 export default function App() {
   const [data, setData] = useState<any[]>([]);
@@ -22,21 +27,13 @@ export default function App() {
 
   // Modal state para agregar itinerario
   const { isOpen: isAddModalOpen, openModal: openAddModal, closeModal: closeAddModal } = useModal();
+  const { confirmModal, showConfirmModal, closeModal } = useConfirmationModal();
 
   useEffect(() => {
     async function fetchData() {
       const supabase = createClient();
 
-      // Verificar autenticación
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (authUser === null) {
-        redirect('/login');
-        return;
-      }
-
+      // El middleware ya verifica la autenticación, no necesitamos hacerlo aquí
       const { data: itineraries, error } = await supabase.from('itinerary').select('*');
 
       if (error) {
@@ -104,12 +101,71 @@ export default function App() {
     [data]
   );
 
+  const handleDeleteItem = useMemoizedCallback(
+    async (itemId: string, itemTitle: string) => {
+      if (!itineraryDeleteConfig) {
+        console.warn('deleteConfig not provided');
+        return;
+      }
+
+      console.log('🚀 handleDeleteItem started for:', itemId);
+
+      try {
+        // Obtener información adicional si es necesario
+        let additionalInfo;
+        if (itineraryDeleteConfig.getAdditionalInfo) {
+          additionalInfo = await itineraryDeleteConfig.getAdditionalInfo(itemId);
+        }
+
+        // Obtener el mensaje personalizado
+        const { title, message } = itineraryDeleteConfig.getDeleteMessage(
+          data.find((item) => item.id === itemId),
+          additionalInfo
+        );
+
+        // Configurar el modal de confirmación
+        showConfirmModal(title, message, async () => {
+          console.log('✅ User confirmed deletion - executing deletion');
+
+          await itineraryDeleteConfig.onDelete(itemId);
+
+          // Actualizar datos localmente
+          const updatedData = data.filter((item) => item.id !== itemId);
+
+          if (handleDataChange) {
+            handleDataChange(updatedData);
+          }
+
+          toast.success(`${itineraryDeleteConfig.entityName} eliminado correctamente`);
+        });
+      } catch (error) {
+        console.error(`Error al obtener información del ${itineraryDeleteConfig.entityName}:`, error);
+        toast.error(`Error al obtener información del ${itineraryDeleteConfig.entityName}`);
+      }
+    }
+  );
+
+  useEffect(()=> {
+    console.log('confirmModal', confirmModal);
+  }, [confirmModal])
+
+  {/* Modal de confirmación para eliminar */}
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={closeModal}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant="danger"
+        isLoading={confirmModal.isLoading}
+      />
+
   // Crear las columnas de las tablas
   const columns: Column[] = [
     { name: 'Clave', uid: 'id', columnType: 'default', visible: false },
     { name: 'Título', uid: 'title', columnType: 'default', sortDirection: 'ascending', filterSearch: true },
     { name: 'Destino', uid: 'destination', columnType: 'default' },
-    { name: 'Lenguaje', uid: 'language', columnType: 'default' },
+    { name: 'Idioma', uid: 'language', columnType: 'default' },
     { name: 'Fecha de inicio', uid: 'start_date', columnType: 'date' },
     { name: 'Fecha de fin', uid: 'end_date', columnType: 'date' },
     { name: 'Estatus', uid: 'status', columnType: 'status' },
@@ -125,7 +181,12 @@ export default function App() {
             size="sm"
             color={rowData.status === 'Activo' ? 'danger' : 'success'}
             variant="flat"
-            onPress={() => handleToggleStatus(rowData.id, rowData.status === 'Activo')}
+            onPress={() => {
+              if (itineraryToggleStatusConfig) {
+                handleToggleStatus(rowData.id, rowData.status === 'Activo');
+              }
+            }}
+            isDisabled={!itineraryToggleStatusConfig}
             startContent={
               rowData.status === 'Activo' ? (
                 <Icon icon="solar:eye-closed-linear" width={16} height={16} />
@@ -145,6 +206,21 @@ export default function App() {
             startContent={<EyeFilledIcon height={16} width={16} />}
           >
             Ver detalles
+          </Button>
+          <Button
+            size="sm"
+            color="danger"
+            variant="flat"
+            onPress={() => {
+              console.log('entra');
+              if (itineraryDeleteConfig) {
+                handleDeleteItem(rowData.id, rowData.title || rowData.name || 'elemento');
+              }
+            }}
+            startContent={<DeleteFilledIcon height={16} width={16} />}
+            isDisabled={!itineraryDeleteConfig}
+          >
+            Eliminar
           </Button>
         </div>
       ),
@@ -193,15 +269,20 @@ export default function App() {
     setTableKey((prev) => prev + 1); // Incrementar key para forzar re-render
   };
 
-  // Función alternativa para refrescar después de agregar
+  if (loading)
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="text-center space-y-4">
+          <Spinner size="lg" color="primary" />
+          <p className="text-default-500">Cargando Itinerarios</p>
+        </div>
+      </div>
+    );
+
   const handleItineraryAdded = () => {
     console.log('🔄 Refrescando datos después de agregar itinerario...');
     refreshData();
   };
-
-  if (loading) {
-    return <div className="flex min-h-screen items-center justify-center">Cargando...</div>;
-  }
 
   const buttonsAdd: AddButton[] = [
     {

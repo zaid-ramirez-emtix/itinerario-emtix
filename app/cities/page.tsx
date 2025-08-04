@@ -18,18 +18,6 @@ export default function App() {
     async function fetchData() {
       const supabase = createClient();
 
-      // Verificar autenticación
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (authUser === null) {
-        redirect('/login');
-        return;
-      }
-
-      setUser(authUser);
-
       const { data: cities, error } = await supabase.from('city').select('*');
 
       if (error) {

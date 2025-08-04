@@ -14,18 +14,13 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  useButton,
   Input,
   Button,
-  RadioGroup,
-  Radio,
   Chip,
   Pagination,
   Tooltip,
-  useButton,
   User,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
 } from '@heroui/react';
 import { SearchIcon } from '@heroui/shared-icons';
 import React, { useMemo, useRef, useState } from 'react';
@@ -38,7 +33,6 @@ import { useMemoizedCallback } from '@/hooks/useMemoizedCallback';
 
 import { CopyText } from './copy-text';
 import { EyeFilledIcon } from './eye';
-import { EditLinearIcon } from './edit';
 import { DeleteFilledIcon } from './delete';
 import { ArrowDownIcon } from './arrow-down';
 import { ArrowUpIcon } from './arrow-up';
@@ -239,9 +233,9 @@ export default function TableUI({
       case 'actions':
         return (
           <div className="flex items-center justify-end gap-2">
-            <EyeFilledIcon {...getEyesProps()} className="cursor-pointer text-default-400" height={18} width={18} />
-            <EditLinearIcon {...getEditProps()} className="cursor-pointer text-default-400" height={18} width={18} />
-            <DeleteFilledIcon {...getDeleteProps()} className="cursor-pointer text-default-400" height={18} width={18} />
+            <Icon icon="solar:eye-linear" className="cursor-pointer text-default-400" height={18} width={18} />
+            <Icon icon="solar:pen-linear" className="cursor-pointer text-default-400" height={18} width={18} />
+            <Icon icon="solar:trash-bin-trash-linear" className="cursor-pointer text-default-400" height={18} width={18} />
           </div>
         );
       case 'custom-actions':
@@ -316,27 +310,6 @@ export default function TableUI({
               onValueChange={onSearchChange}
             />
             <div>
-              <Popover placement="bottom">
-                <PopoverTrigger>
-                  <Button
-                    className="bg-default-100 text-default-800"
-                    size="sm"
-                    startContent={<Icon className="text-default-400" icon="solar:tuning-2-linear" width={16} />}
-                  >
-                    Filtros
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="flex w-full flex-col gap-6 px-2 py-4">
-                    <RadioGroup label="Worker Type" value={workerTypeFilter} onValueChange={setWorkerTypeFilter}>
-                      <Radio value="all">Todos</Radio>
-                      {/* TODO: AGREGAR LAS OPCIONES DINÁMICAMENTE */}
-                    </RadioGroup>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div>
               <Dropdown>
                 <DropdownTrigger>
                   <Button
@@ -410,19 +383,7 @@ export default function TableUI({
         </div>
       </div>
     );
-  }, [
-    filterValue,
-    visibleColumns,
-    filterSelectedKeys,
-    headerColumns,
-    sortDescriptor,
-    workerTypeFilter,
-    startDateFilter,
-    setWorkerTypeFilter,
-    setStartDateFilter,
-    onSearchChange,
-    setVisibleColumns,
-  ]);
+  }, [filterValue, visibleColumns, filterSelectedKeys, headerColumns, sortDescriptor, onSearchChange, setVisibleColumns]);
 
   const topBar = useMemo(() => {
     return (

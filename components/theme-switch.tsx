@@ -59,7 +59,7 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
               "w-auto h-auto",
               "bg-transparent",
               "rounded-lg",
-              "flex items-center justify-center",
+              "flex items-center justify-center gap-2",
               "group-data-[selected=true]:bg-transparent",
               "!text-default-500",
               "pt-px",
@@ -75,6 +75,7 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
         ) : (
           <MoonFilledIcon size={22} />
         )}
+        Change Theme
       </div>
     </Component>
   );

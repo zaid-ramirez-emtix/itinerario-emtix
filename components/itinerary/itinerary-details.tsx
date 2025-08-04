@@ -8,7 +8,7 @@ import { Itinerary } from '@/types/itinerary'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { Modal, useModal } from "@/components/ui/modal";
-import ItineraryEdit from "../itinerary/itinerary-edit";
+import ItineraryEdit from "./edit-itinerary-modal";
 import { ItineraryDays } from "./itinerary-days";
 import { generateItineraryPDF } from '@/services/pdf-generator';
 

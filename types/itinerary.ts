@@ -31,3 +31,19 @@ export interface ItineraryFormProps {
   onSuccess?: (data: Itinerary) => void;
   onCancel?: () => void;
 }
+
+export interface DayFormProps {
+  initialData?: Day;
+  mode: 'create' | 'edit';
+  itineraryId?: string;
+  onSuccess?: (data: DayWithActivities) => void;
+  onCancel?: () => void;
+}
+
+export interface ActivityFormProps {
+  initialData?: Activity;
+  mode: 'create' | 'edit';
+  dayId?: string;
+  onSuccess?: (data: Activity) => void;
+  onCancel?: () => void;
+}
