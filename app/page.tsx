@@ -1,18 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { redirect } from 'next/navigation';
 import TableUI from '@/components/tableUI/TableUI';
 
-import { Column } from '@/components/tableUI/types';
+import { Column, AddButton } from '@/components/tableUI/types';
 import { StatusOptions } from '@/components/tableUI/mockData';
+import { Modal, useModal } from '@/components/ui/modal';
+import { AddItineraryModal } from '@/components/itinerary/add-itinerary-modal';
+import { Button } from '@heroui/react';
+import Link from 'next/link';
+import { Icon } from '@iconify/react';
+import { EyeFilledIcon } from '@/components/tableUI/eye';
+import { toast } from 'sonner';
 
 export default function App() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
   const [tableKey, setTableKey] = useState(0); // Key para forzar re-render
+
+  // Modal state para agregar itinerario
+  const { isOpen: isAddModalOpen, openModal: openAddModal, closeModal: closeAddModal } = useModal();
 
   useEffect(() => {
     async function fetchData() {
@@ -28,9 +37,7 @@ export default function App() {
         return;
       }
 
-      setUser(authUser);
-
-      const { data: itineraries, error } = await supabase.from('itinerary').select('*')
+      const { data: itineraries, error } = await supabase.from('itinerary').select('*');
 
       if (error) {
         console.error('Error al obtener datos:', error.message);
@@ -69,6 +76,34 @@ export default function App() {
     fetchData();
   }, []);
 
+  const handleToggleStatus = useCallback(
+    async (itineraryId: string, isCurrentlyActive: boolean) => {
+      try {
+        const supabase = createClient();
+        const newActiveStatus = !isCurrentlyActive;
+
+        const { error } = await supabase.from('itinerary').update({ active: newActiveStatus }).eq('id_itinerary', itineraryId);
+
+        if (error) {
+          console.error('Error al actualizar estado:', error);
+          toast.error('Error al actualizar el estado del itinerario');
+          return;
+        }
+
+        const updatedData = data.map((item) => (item.id === itineraryId ? { ...item, status: newActiveStatus ? 'Activo' : 'Inactivo' } : item));
+
+        setData(updatedData); // en vez de onDataChange
+        setTableKey((prev) => prev + 1);
+
+        toast.success(`Itinerario ${newActiveStatus ? 'activado' : 'desactivado'} correctamente`);
+      } catch (error) {
+        console.error('Error al cambiar estado:', error);
+        toast.error('Error al actualizar el estado del itinerario');
+      }
+    },
+    [data]
+  );
+
   // Crear las columnas de las tablas
   const columns: Column[] = [
     { name: 'Clave', uid: 'id', columnType: 'default', visible: false },
@@ -80,13 +115,46 @@ export default function App() {
     { name: 'Estatus', uid: 'status', columnType: 'status' },
     { name: 'Fecha de creación', uid: 'created_at', columnType: 'date' },
     { name: 'Última modificación', uid: 'updated_at', columnType: 'date' },
-    { name: 'Acciones', uid: 'actions', columnType: 'itinerary-actions' },
+    {
+      name: 'Acciones',
+      uid: 'actions',
+      columnType: 'custom-actions',
+      renderCell: (rowData) => (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            size="sm"
+            color={rowData.status === 'Activo' ? 'danger' : 'success'}
+            variant="flat"
+            onPress={() => handleToggleStatus(rowData.id, rowData.status === 'Activo')}
+            startContent={
+              rowData.status === 'Activo' ? (
+                <Icon icon="solar:eye-closed-linear" width={16} height={16} />
+              ) : (
+                <Icon icon="solar:eye-linear" width={16} height={16} />
+              )
+            }
+          >
+            {rowData.status === 'Activo' ? 'Desactivar' : 'Activar'}
+          </Button>
+          <Button
+            as={Link}
+            href={`/itinerary/${rowData.id}`}
+            size="sm"
+            color="primary"
+            variant="flat"
+            startContent={<EyeFilledIcon height={16} width={16} />}
+          >
+            Ver detalles
+          </Button>
+        </div>
+      ),
+    },
   ];
 
   // Función para refrescar datos desde Supabase
   const refreshData = async () => {
     const supabase = createClient();
-    const { data: itineraries, error } = await supabase.from('itinerary').select('*')
+    const { data: itineraries, error } = await supabase.from('itinerary').select('*');
 
     if (error) {
       console.error('Error al refrescar datos:', error.message);
@@ -135,7 +203,12 @@ export default function App() {
     return <div className="flex min-h-screen items-center justify-center">Cargando...</div>;
   }
 
-  
+  const buttonsAdd: AddButton[] = [
+    {
+      label: 'Nuevo itinerario',
+      onClick: openAddModal,
+    },
+  ];
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between">
@@ -145,10 +218,15 @@ export default function App() {
           columns={columns}
           data={data}
           title="Itinerarios"
-          buttonsAdd={['Nuevo itinerario']}
+          buttonsAdd={buttonsAdd}
           onDataChange={handleDataChange}
         />
       </section>
+
+      {/* Modal para agregar itinerario */}
+      <Modal isOpen={isAddModalOpen} onClose={closeAddModal} title="Crear Nuevo Itinerario" size="lg">
+        <AddItineraryModal onItineraryAdded={handleItineraryAdded} onClose={closeAddModal} />
+      </Modal>
     </main>
   );
 }

@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/client';
 import { redirect } from 'next/navigation';
 import TableUI from '@/components/tableUI/TableUI';
 
-import { Column } from '@/components/tableUI/types';
+import { AddButton, Column } from '@/components/tableUI/types';
 import { createLocalDate } from '@/helpers/dates';
 
 export default function App() {
@@ -44,7 +44,7 @@ export default function App() {
           return {
             id: city.id_city,
             name: city.city_name,
-            image: city.city_image_path,
+            img_src: city.city_image_path,
             created_at: createLocalDate(city.created_at),
             updated_at: createLocalDate(city.updated_at),
           };
@@ -61,10 +61,10 @@ export default function App() {
   const columns: Column[] = [
     { name: 'Clave', uid: 'id', columnType: 'default', visible: false },
     { name: 'Nombre', uid: 'name', columnType: 'default', sortDirection: 'ascending', filterSearch: true },
-    { name: 'Imagen', uid: 'image', columnType: 'default' },
+    { name: 'Imagen', uid: 'img_src', columnType: 'image', imageHeight: 200 },
     { name: 'Fecha de creación', uid: 'created_at', columnType: 'date' },
     { name: 'Última modificación', uid: 'updated_at', columnType: 'date' },
-    { name: 'Acciones', uid: 'actions', columnType: 'itinerary-actions' },
+    { name: 'Acciones', uid: 'actions', columnType: 'actions' },
   ];
 
   // Función para refrescar datos desde Supabase
@@ -77,13 +77,14 @@ export default function App() {
       return;
     }
 
+    // TODO: Crear una interfaz para los datos normalizados
     // Normalizar los datos
     const normalizedCities =
       cities.map((city) => {
         return {
           id: city.id_city,
           name: city.city_name,
-          image: city.city_image_path,
+          img_src: city.city_image_path,
           created_at: createLocalDate(city.created_at),
           updated_at: createLocalDate(city.updated_at),
         };
@@ -110,6 +111,13 @@ export default function App() {
     return <div className="flex min-h-screen items-center justify-center">Cargando...</div>;
   }
 
+    const buttonsAdd: AddButton[] = [
+      {
+        label: 'Nueva ciudad',
+        onClick: ()=>{console.log('entra')},
+      },
+    ];
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between">
       <section>
@@ -118,7 +126,7 @@ export default function App() {
           columns={columns}
           data={data}
           title="Catálogo de ciudades"
-          buttonsAdd={['Agregar nueva ciudad']}
+          buttonsAdd={buttonsAdd}
           onDataChange={handleDataChange}
         />
       </section>
