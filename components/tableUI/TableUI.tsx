@@ -14,6 +14,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  useButton,
   Input,
   Button,
   Chip,
@@ -22,19 +23,13 @@ import {
   User,
 } from '@heroui/react';
 import { SearchIcon } from '@heroui/shared-icons';
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { cn } from '@heroui/react';
-import Link from 'next/link';
 import { Status } from './Status';
 import { StatusOptions } from './mockData';
-import { Modal, useModal } from '@/components/ui/modal';
-import ConfirmModal from '@/components/ui/confirm-modal';
-import { AddItineraryModal } from '@/components/itinerary/add-itinerary-modal';
-import { toast } from 'sonner';
 
 import { useMemoizedCallback } from '@/hooks/useMemoizedCallback';
-import { useConfirmationModal } from '@/hooks/useConfirmationModal';
 
 import { CopyText } from './copy-text';
 import { EyeFilledIcon } from './eye';
@@ -42,7 +37,7 @@ import { DeleteFilledIcon } from './delete';
 import { ArrowDownIcon } from './arrow-down';
 import { ArrowUpIcon } from './arrow-up';
 
-import { Column } from './types';
+import { Column, AddButton } from './types';
 
 export default function TableUI({
   columns,
@@ -50,27 +45,12 @@ export default function TableUI({
   title,
   buttonsAdd,
   onDataChange,
-  deleteConfig,
-  toggleStatusConfig,
 }: {
   columns: Column[];
   data: any[];
   title: string;
-  buttonsAdd: string[];
+  buttonsAdd: AddButton[];
   onDataChange?: (newData: any[]) => void;
-  deleteConfig?: {
-    entityName: string; // 'itinerario', 'ciudad', etc.
-    getDeleteMessage: (item: any, additionalInfo?: any) => {
-      title: string;
-      message: string;
-    };
-    onDelete: (itemId: string) => Promise<void>;
-    getAdditionalInfo?: (itemId: string) => Promise<any>;
-  };
-  toggleStatusConfig?: {
-    onToggle: (itemId: string, isCurrentlyActive: boolean) => Promise<boolean>;
-    entityName: string;
-  };
 }) {
   const [filterValue, setFilterValue] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
@@ -78,11 +58,8 @@ export default function TableUI({
   const [rowsPerPage] = useState(10);
   const [page, setPage] = useState(1);
 
-  // Modal state para agregar itinerario
-  const { isOpen: isAddModalOpen, openModal: openAddModal, closeModal: closeAddModal } = useModal();
-  
-  // Hook para modal de confirmación 
-  const { confirmModal, showConfirmModal, closeModal } = useConfirmationModal();
+  const [workerTypeFilter, setWorkerTypeFilter] = React.useState('all');
+  const [startDateFilter, setStartDateFilter] = React.useState('all');
 
   // FILTRADO Y CONFIGURACIÓN DE INPUT SEARCH
   // Configurar el input de search para filtrar la columna especificada
@@ -113,10 +90,6 @@ export default function TableUI({
       })
       .filter((column) => Array.from(visibleColumns).includes(column.uid));
   }, [visibleColumns, sortDescriptor]);
-
-  useEffect(() => {
-    console.log('headerColumns', headerColumns);
-  }, [headerColumns]);
 
   // Obtener los elementos filtrados por el input search
   const filteredItems = useMemo(() => {
@@ -176,15 +149,21 @@ export default function TableUI({
     return resultKeys;
   }, [selectedKeys, filteredItems, filterValue]);
 
+  const eyesRef = useRef<HTMLButtonElement | null>(null);
+  const editRef = useRef<HTMLButtonElement | null>(null);
+  const deleteRef = useRef<HTMLButtonElement | null>(null);
+  const { getButtonProps: getEyesProps } = useButton({ ref: eyesRef });
+  const { getButtonProps: getEditProps } = useButton({ ref: editRef });
+  const { getButtonProps: getDeleteProps } = useButton({ ref: deleteRef });
   const getColumnInfoProps = useMemoizedCallback((column: Column) => ({
     onClick: () => {
       handleColumnClick(column);
     },
   }));
 
-  const renderCell = (user: any, columnKey: React.Key) => {
+  const renderCell = useMemoizedCallback((rowData: any, columnKey: React.Key) => {
     const userKey = columnKey as string;
-    const cellValue = user[userKey as any] as string;
+    const cellValue = rowData[userKey as any] as string;
     const column = columns.find((col) => col.uid === userKey);
     const type = column?.columnType ?? 'default';
 
@@ -194,15 +173,15 @@ export default function TableUI({
       case 'user':
         return (
           <User
-            avatarProps={{ radius: 'lg', src: user[userKey].avatar }}
+            avatarProps={{ radius: 'lg', src: rowData[userKey].avatar }}
             classNames={{
               name: 'text-default-foreground',
               description: 'text-default-500',
             }}
-            description={user[userKey].email}
-            name={user[userKey].name}
+            description={rowData[userKey].email}
+            name={rowData[userKey].name}
           >
-            {user[userKey].email}
+            {rowData[userKey].email}
           </User>
         );
       case 'date':
@@ -221,7 +200,7 @@ export default function TableUI({
       case 'chips':
         return (
           <div className="float-start flex gap-1">
-            {user[userKey].map((team: any, index: any) => {
+            {rowData[userKey].map((team: any, index: any) => {
               if (index < 3) {
                 return (
                   <Chip key={team} className="rounded-xl bg-default-100 px-[6px] capitalize text-default-800" size="sm" variant="flat">
@@ -245,6 +224,12 @@ export default function TableUI({
         return <div className="text-nowrap text-small capitalize text-default-foreground">{cellValue}</div>;
       case 'status':
         return <Status status={cellValue as StatusOptions} />;
+      case 'image':
+        return (
+          <div className={`overflow-hidden h-[${column?.imageHeight}]`} style={{ height: '200px' }}>
+            <img src={rowData.img_src} alt={rowData.name} className="object-contain w-full h-full" />
+          </div>
+        );
       case 'actions':
         return (
           <div className="flex items-center justify-end gap-2">
@@ -253,59 +238,13 @@ export default function TableUI({
             <Icon icon="solar:trash-bin-trash-linear" className="cursor-pointer text-default-400" height={18} width={18} />
           </div>
         );
-      case 'itinerary-actions':
-        return (
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              size="sm"
-              color={user.status === 'Activo' ? 'danger' : 'success'}
-              variant="flat"
-              onPress={() => {
-                if (toggleStatusConfig) {
-                  handleToggleStatus(user.id, user.status === 'Activo');
-                }
-              }}
-              isDisabled={!toggleStatusConfig}
-              startContent={
-                user.status === 'Activo' ? (
-                  <Icon icon="solar:eye-closed-linear" width={16} height={16} />
-                ) : (
-                  <Icon icon="solar:eye-linear" width={16} height={16} />
-                )
-              }
-            >
-              {user.status === 'Activo' ? 'Desactivar' : 'Activar'}
-            </Button>
-            <Button
-              as={Link}
-              href={`/itinerary/${user.id}`}
-              size="sm"
-              color="primary"
-              variant="flat"
-              startContent={<EyeFilledIcon height={16} width={16} />}
-            >
-              Ver detalles
-            </Button>
-            <Button
-              size="sm"
-              color="danger"
-              variant="flat"
-              onPress={() => {
-                if (deleteConfig) {
-                  handleDeleteItem(user.id, user.title || user.name || 'elemento');
-                }
-              }}
-              startContent={<DeleteFilledIcon height={16} width={16} />}
-              isDisabled={!deleteConfig}
-            >
-              Eliminar
-            </Button>
-          </div>
-        );
+      case 'custom-actions':
+        return column?.renderCell ? column.renderCell(rowData) : null;
+
       default:
         return cellValue;
     }
-  };
+  });
 
   const onNextPage = useMemoizedCallback(() => {
     if (page < pages) {
@@ -381,7 +320,12 @@ export default function TableUI({
                     Ordenar
                   </Button>
                 </DropdownTrigger>
-                <DropdownMenu aria-label="Ordenar" items={headerColumns.filter((c) => !['actions', 'teams'].includes(c.uid) && c.visible !== false)} selectedKeys={[sortDescriptor.column]} selectionMode="single">
+                <DropdownMenu
+                  aria-label="Ordenar"
+                  items={headerColumns.filter((c) => !['actions', 'teams'].includes(c.uid) && c.visible !== false)}
+                  selectedKeys={[sortDescriptor.column]}
+                  selectionMode="single"
+                >
                   {(item: Column) => (
                     <DropdownItem
                       key={item.uid}
@@ -439,15 +383,7 @@ export default function TableUI({
         </div>
       </div>
     );
-  }, [
-    filterValue,
-    visibleColumns,
-    filterSelectedKeys,
-    headerColumns,
-    sortDescriptor,
-    onSearchChange,
-    setVisibleColumns,
-  ]);
+  }, [filterValue, visibleColumns, filterSelectedKeys, headerColumns, sortDescriptor, onSearchChange, setVisibleColumns]);
 
   const topBar = useMemo(() => {
     return (
@@ -459,17 +395,8 @@ export default function TableUI({
           </Chip>
         </div>
         <div className="flex gap-3">
-          {buttonsAdd.map((label, index) => (
-            <Button
-              key={index}
-              color="primary"
-              endContent={<Icon icon="solar:add-circle-bold" width={20} />}
-              onPress={() => {
-                if (label === 'Nuevo itinerario') {
-                  openAddModal();
-                }
-              }}
-            >
+          {buttonsAdd.map(({ label, onClick }, index) => (
+            <Button key={index} color="primary" endContent={<Icon icon="solar:add-circle-bold" width={20} />} onPress={onClick}>
               {label}
             </Button>
           ))}
@@ -509,117 +436,6 @@ export default function TableUI({
       direction: column.sortDirection ? (prev.direction === 'ascending' ? 'descending' : 'ascending') : 'ascending',
     }));
   });
-
-  // TODO: Esto no va aquí
-
-  // Función para manejar cuando se agrega un nuevo itinerario
-  const handleItineraryAdded = useCallback(
-    (newItinerary: any) => {
-      if (onDataChange) {
-        // Crear el objeto normalizado como se hace en la página principal
-        const createLocalDate = (dateString: string) => {
-          const dateParts = dateString.split('T')[0].split('-');
-          return new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-        };
-
-        const normalizedItinerary = {
-          id: newItinerary.id_itinerary,
-          title: newItinerary.title,
-          destination: newItinerary.destination,
-          language: `${newItinerary.language}`.toUpperCase(),
-          start_date: createLocalDate(newItinerary.start_date),
-          end_date: createLocalDate(newItinerary.end_date),
-          status: newItinerary.active ? 'Activo' : 'Inactivo',
-        };
-
-        // Agregar el nuevo itinerario y ordenar por fecha de inicio (más recientes primero)
-        const updatedData = [normalizedItinerary, ...data].sort((a, b) => {
-          return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
-        });
-
-        onDataChange(updatedData);
-      }
-    },
-    [data, onDataChange]
-  );
-
-  // Función para manejar el cambio de estado (activar/desactivar)
-  const handleToggleStatus = useMemoizedCallback(
-    async (itemId: string, isCurrentlyActive: boolean) => {
-      if (!toggleStatusConfig) {
-        console.warn('toggleStatusConfig not provided');
-        return;
-      }
-
-      try {
-        const newActiveStatus = await toggleStatusConfig.onToggle(itemId, isCurrentlyActive);
-
-        // Actualizar datos localmente
-        const updatedData = data.map((item) => (
-          item.id === itemId 
-            ? { ...item, status: newActiveStatus ? 'Activo' : 'Inactivo' } 
-            : item
-        ));
-
-        if (onDataChange) {
-          onDataChange(updatedData);
-        }
-
-        toast.success(`${toggleStatusConfig.entityName} ${newActiveStatus ? 'activado' : 'desactivado'} correctamente`);
-      } catch (error) {
-        console.error('Error al cambiar estado:', error);
-        toast.error(`Error al actualizar el estado del ${toggleStatusConfig.entityName.toLowerCase()}`);
-      }
-    }
-  );
-
-  const handleDeleteItem = useMemoizedCallback(
-    async (itemId: string, itemTitle: string) => {
-      if (!deleteConfig) {
-        console.warn('deleteConfig not provided');
-        return;
-      }
-
-      console.log('🚀 handleDeleteItem started for:', itemId);
-      
-      try {
-        // Obtener información adicional si es necesario
-        let additionalInfo;
-        if (deleteConfig.getAdditionalInfo) {
-          additionalInfo = await deleteConfig.getAdditionalInfo(itemId);
-        }
-
-        // Obtener el mensaje personalizado
-        const { title, message } = deleteConfig.getDeleteMessage(
-          data.find(item => item.id === itemId),
-          additionalInfo
-        );
-
-        // Configurar el modal de confirmación
-        showConfirmModal(
-          title,
-          message,
-          async () => {
-            console.log('✅ User confirmed deletion - executing deletion');
-            
-            await deleteConfig.onDelete(itemId);
-            
-            // Actualizar datos localmente
-            const updatedData = data.filter((item) => item.id !== itemId);
-            
-            if (onDataChange) {
-              onDataChange(updatedData);
-            }
-            
-            toast.success(`${deleteConfig.entityName} eliminado correctamente`);
-          }
-        );
-      } catch (error) {
-        console.error(`Error al obtener información del ${deleteConfig.entityName}:`, error);
-        toast.error(`Error al obtener información del ${deleteConfig.entityName}`);
-      }
-    }
-  );
 
   return (
     <>
@@ -677,22 +493,6 @@ export default function TableUI({
           </TableBody>
         </Table>
       </div>
-
-      {/* Modal para agregar itinerario */}
-      <Modal isOpen={isAddModalOpen} onClose={closeAddModal} title="Crear Nuevo Itinerario" size="lg">
-        <AddItineraryModal onItineraryAdded={handleItineraryAdded} onClose={closeAddModal} />
-      </Modal>
-
-      {/* Modal de confirmación para eliminar */}
-      <ConfirmModal 
-        isOpen={confirmModal.isOpen}
-        onClose={closeModal}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        variant="danger"
-        isLoading={confirmModal.isLoading}
-      />
     </>
   );
 }

@@ -22,6 +22,7 @@ export function useConfirmationModal() {
     message: string,
     onConfirm: () => Promise<void>
   ) => {
+    console.log('Entra al showConfirmModal');
     setConfirmModal({
       isOpen: true,
       title,

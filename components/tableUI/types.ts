@@ -9,11 +9,13 @@ export interface Column {
   sortDirection?: 'ascending' | 'descending'; //1 y solo 1 columna tiene que tener `sortDirection` para que la tabla se renderice correctamente
   info?: string;
   visible?: boolean;
+  imageHeight?: number;
+  renderCell?: (item: any) => JSX.Element;
 }
 
 export interface AddButton {
   label: string;
-  function: () => any;
+  onClick: any;
 }
 
-type ColumnType = 'default' | 'copy' | 'user' | 'date' | 'country' | 'chips' | 'role' | 'status' | 'actions' | 'itinerary-actions';
+type ColumnType = 'default' | 'copy' | 'user' | 'date' | 'country' | 'chips' | 'role' | 'status' | 'image' | 'actions' | 'custom-actions';
